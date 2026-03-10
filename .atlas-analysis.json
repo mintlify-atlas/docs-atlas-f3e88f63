@@ -1,0 +1,122 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "HH-suite",
+  "projectDescription": "Fast and sensitive remote protein homology detection suite based on HMM-HMM comparisons",
+  "theme": "aspen",
+  "primaryColor": "#04334b",
+  "lightColor": "#f2f3fa",
+  "darkColor": "#7c94a4",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Tools",
+            "pages": [
+              "tools/hhblits",
+              "tools/hhsearch",
+              "tools/hhalign",
+              "tools/hhmake",
+              "tools/hhfilter",
+              "tools/hhconsensus"
+            ]
+          },
+          {
+            "group": "Utility Tools",
+            "pages": [
+              "tools/cstranslate",
+              "tools/a3m-tools",
+              "tools/scripts"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/databases",
+              "guides/file-formats",
+              "guides/performance",
+              "guides/parallel-computing",
+              "guides/building-custom-databases"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/compilation",
+              "advanced/parameters",
+              "advanced/algorithms"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Command Reference",
+            "pages": [
+              "reference/hhblits",
+              "reference/hhsearch",
+              "reference/hhalign",
+              "reference/hhmake",
+              "reference/hhfilter",
+              "reference/hhconsensus",
+              "reference/cstranslate"
+            ]
+          },
+          {
+            "group": "File Formats",
+            "pages": [
+              "reference/formats/a3m",
+              "reference/formats/hhm",
+              "reference/formats/hhr",
+              "reference/formats/databases"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "HHblits for fast iterative sequence database searching",
+    "HHsearch for sensitive protein homology detection",
+    "HHalign for pairwise HMM-HMM alignment",
+    "Profile HMM construction with HHmake",
+    "SIMD optimizations (SSE2, AVX2) for performance",
+    "MPI and OpenMP support for parallel processing",
+    "Multiple sequence alignment filtering and manipulation",
+    "Support for major protein databases (Uniclust30, BFD, Pfam, PDB70)"
+  ],
+  "publicApiSurface": [
+    "hhblits",
+    "hhsearch",
+    "hhalign",
+    "hhmake",
+    "hhfilter",
+    "hhconsensus",
+    "cstranslate",
+    "a3m_extract",
+    "a3m_reduce",
+    "a3m_database_reduce",
+    "a3m_database_extract",
+    "a3m_database_filter",
+    "hhblits_omp",
+    "hhsearch_omp",
+    "hhalign_omp",
+    "hhblits_mpi",
+    "hhsearch_mpi",
+    "hhalign_mpi",
+    "addss.pl",
+    "hhmakemodel.pl",
+    "reformat.pl"
+  ]
+}
