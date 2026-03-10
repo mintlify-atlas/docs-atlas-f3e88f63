@@ -1,80 +1,323 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start Guide
+description: Run your first protein homology search with HH-suite in minutes
 ---
 
-## Get started in three steps
+## Overview
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This guide walks you through running a complete HH-suite workflow: from a single protein sequence to identifying homologous structures in the PDB database.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+Make sure you have [installed HH-suite](/installation) before proceeding.
 </Note>
+
+## Step 1: Prepare a Query Sequence
+
+Create a file called `query.fasta` with your protein sequence in FASTA format:
+
+```fasta query.fasta
+>sp|Q5VUD6|FA69B_HUMAN Protein FAM69B
+MRRLRRLAHLVLFCPFSKRLQGRLPGLRVRCIFLAWLGVFAGSWLVYVHYSSYSERCRGHVCQVVI
+CDQYRKGIISGSVCQDLCELHMVEWRTCLSVAPGQQVYSGLWRDKDVTIKCGIEETLDSKARSDAA
+PRRELVLFDKPTRGTSIKEFREMTLSFLKANLGDLPSLPALVGQVLLMADFNKDNRVSLAEAKSV
+WALLQRNEFLLLLSLQEKEHASRLLGYCGDLYLTEGVPHGAWHAAALPPLLRPLLPPALQGALQQ
+WLGPAWPWRAKIAIGLLEFVEELFHGSYGTFYMCETTLANVGYTATYDFKMADLQQVAPEATVRR
+FLQGRRCEHSTDCTYGRDCRAPCDRLMRQCKGDLIQPNLAKVCALLRGYLLPGAPADLREELGTQ
+LRTCTTLSGLASQVEAHHSLVLSHLKTLLWKKISNTKYS
+```
+
+<Tip>
+You can use any protein sequence in FASTA format. For testing, the example above is from the query.a3m file included with HH-suite.
+</Tip>
+
+## Step 2: Download a Database
+
+For this quickstart, we'll use the PDB70 database (a filtered version of protein structures in the PDB):
+
+```bash
+# Download PDB70 database
+wget http://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/pdb70_from_mmcif_latest.tar.gz
+
+# Extract the database
+tar xvfz pdb70_from_mmcif_latest.tar.gz
+```
+
+<Warning>
+Database files are large (PDB70 is ~2-3 GB compressed). Make sure you have sufficient disk space and a stable internet connection.
+</Warning>
+
+<Accordion title="Alternative: Use a Smaller Test Database">
+  For quick testing, you can use the smaller SCOP database:
+  ```bash
+  wget http://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/scop70_1.75.tar.gz
+  tar xvfz scop70_1.75.tar.gz
+  ```
+</Accordion>
+
+## Step 3: Run Your First Search
+
+Now let's run HHblits to search for homologous sequences:
+
+<CodeGroup>
+```bash Basic Search
+hhblits -i query.fasta -o results.hhr -n 1 -d pdb70
+```
+
+```bash Search with Alignment Output
+hhblits -i query.fasta -o results.hhr -oa3m results.a3m -d pdb70
+```
+
+```bash Multi-iteration Search (More Sensitive)
+hhblits -i query.fasta -o results.hhr -oa3m results.a3m -n 3 -d pdb70
+```
+</CodeGroup>
+
+### Command Breakdown
+
+- `-i query.fasta` - Input query sequence
+- `-o results.hhr` - Output file with search results
+- `-oa3m results.a3m` - Output multiple sequence alignment in A3M format
+- `-n 3` - Number of search iterations (default: 2)
+- `-d pdb70` - Database basename (without file extension)
+
+<Note>
+The first search iteration may take 30 seconds to a few minutes depending on your CPU and database size.
+</Note>
+
+## Step 4: Examine the Results
+
+Open `results.hhr` to see the homology search results:
+
+```bash
+less results.hhr
+# or
+cat results.hhr | head -100
+```
+
+### Understanding the Output
+
+The results file contains:
+
+<Steps>
+  <Step title="Summary Statistics">
+    Header information about the query and search parameters
+  </Step>
+  <Step title="Hit List">
+    Ranked list of homologous proteins with:
+    - **E-value**: Statistical significance (lower is better; < 0.001 is significant)
+    - **Probability**: Likelihood of true homology (0-100%)
+    - **P-value**: Probability of seeing this score by chance
+    - **Score**: Raw alignment score
+    - **Aligned columns**: Length of the alignment
+  </Step>
+  <Step title="Detailed Alignments">
+    Pairwise alignments between query and each hit, showing:
+    - Sequence alignment
+    - Secondary structure predictions
+    - Confidence scores
+  </Step>
+</Steps>
+
+### Example Output Interpretation
+
+```
+No Hit                             Prob E-value P-value  Score    SS Cols Query HMM  Template HMM
+ 1 6xyz_A Protein FAM69B; HUMAN    99.9   1E-45   1E-50  312.5  25.2  389    1-389    15-403 (410)
+ 2 3abc_B FAM69 family member       95.2   0.012   1E-07   89.3  12.1  234   45-278    89-322 (450)
+```
+
+<Tip>
+- **Prob > 95%** and **E-value < 0.001**: Strong evidence of homology
+- **Prob 50-95%**: Possible homology, check alignment carefully  
+- **Prob < 50%**: Likely not related
+</Tip>
+
+## Step 5: Build a Multiple Sequence Alignment
+
+Use the generated MSA for downstream analyses:
+
+```bash
+# View the alignment
+less results.a3m
+
+# Convert to other formats if needed
+reformat.pl a3m fas results.a3m results.fasta
+reformat.pl a3m sto results.a3m results.stockholm
+```
+
+<Note>
+The `.a3m` format is HH-suite's compressed alignment format that preserves insertion/deletion information.
+</Note>
+
+## Alternative Workflows
+
+### Using hhsearch Instead of hhblits
+
+If you already have a multiple sequence alignment (MSA), use `hhsearch` for more sensitive profile-profile searches:
+
+<Steps>
+  <Step title="Build an HMM Profile">
+    ```bash
+    hhmake -i results.a3m -o query.hhm
+    ```
+  </Step>
+  <Step title="Search Against a Profile Database">
+    ```bash
+    hhsearch -i query.hhm -d pdb70 -o hhsearch_results.hhr
+    ```
+  </Step>
+</Steps>
+
+### Searching Against Sequence Databases
+
+To search against large sequence databases like Uniclust30 or BFD:
+
+```bash
+# Download Uniclust30 (note: this is a large file ~17 GB)
+wget http://wwwuser.gwdg.de/~compbiol/uniclust/current_release/uniclust30_2018_08_hhsuite.tar.gz
+tar xvfz uniclust30_2018_08_hhsuite.tar.gz
+
+# Run iterative search
+hhblits -i query.fasta -o results.hhr -oa3m results.a3m -n 3 -d uniclust30_2018_08/uniclust30_2018_08
+```
+
+## Common Options
+
+Customize your search with these frequently used parameters:
+
+<AccordionGroup>
+  <Accordion title="Control Sensitivity">
+    ```bash
+    # More sensitive (slower)
+    hhblits -i query.fasta -d database -o results.hhr -n 3 -e 0.001
+    
+    # Less sensitive (faster)
+    hhblits -i query.fasta -d database -o results.hhr -n 1 -e 1
+    ```
+    - `-e 0.001` - E-value threshold (default: 0.001)
+    - `-n 3` - More iterations = more sensitivity
+  </Accordion>
+
+  <Accordion title="Speed Up Searches">
+    ```bash
+    # Use multiple CPU cores
+    hhblits -i query.fasta -d database -o results.hhr -cpu 8
+    
+    # Reduce coverage requirement
+    hhblits -i query.fasta -d database -o results.hhr -cov 50
+    ```
+    - `-cpu 8` - Use 8 threads (default: 2)
+    - `-cov 50` - Minimum coverage of query (default: 20%)
+  </Accordion>
+
+  <Accordion title="Filter Results">
+    ```bash
+    # Only report significant hits
+    hhblits -i query.fasta -d database -o results.hhr -E 0.001 -p 50
+    ```
+    - `-E 0.001` - Maximum E-value to report
+    - `-p 50` - Minimum probability threshold (0-100)
+  </Accordion>
+
+  <Accordion title="Output Formats">
+    ```bash
+    # Multiple output options
+    hhblits -i query.fasta -d database \
+      -o results.hhr \      # HH-suite format
+      -oa3m results.a3m \   # Multiple sequence alignment
+      -opsi results.psi \   # PSI-BLAST format
+      -ohhm results.hhm     # HMM profile
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Error: Could not open database">
+    Make sure:
+    - Database files are extracted in the current directory
+    - You're using the basename without extension: `-d pdb70` not `-d pdb70.ff`
+    - Required database files exist (`.ffdata`, `.ffindex`, `.cs219.*`)
+  </Accordion>
+
+  <Accordion title="Search is very slow">
+    - Use fewer iterations: `-n 1` instead of `-n 3`
+    - Enable more threads: `-cpu 8`
+    - Use the AVX2 build if your CPU supports it
+    - Try a smaller database for testing (e.g., SCOP instead of Uniclust)
+  </Accordion>
+
+  <Accordion title="No significant hits found">
+    - Increase sensitivity: `-n 3 -e 1` (more iterations, higher E-value)
+    - Check if your query is too short (< 30 residues)
+    - Try a different database (e.g., Uniclust30 for more diversity)
+    - Your protein may be truly novel or from an undersampled family
+  </Accordion>
+
+  <Accordion title="Out of memory errors">
+    - Reduce number of threads: `-cpu 2`
+    - Search against smaller database subsets
+    - Increase system swap space
+    - Use a machine with more RAM (16+ GB recommended for large databases)
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Guide" icon="database" href="/guides/databases">
+    Download and set up additional databases
+  </Card>
+  <Card title="HHblits Reference" icon="book" href="/tools/hhblits">
+    Complete documentation for hhblits options
+  </Card>
+  <Card title="HHsearch Guide" icon="magnifying-glass" href="/tools/hhsearch">
+    Profile-profile searches for maximum sensitivity
+  </Card>
+  <Card title="Output Formats" icon="file" href="/output-formats">
+    Understanding and parsing HH-suite results
+  </Card>
+</CardGroup>
+
+## Example Workflow Script
+
+Here's a complete bash script for running a protein homology search:
+
+```bash run_hhblits.sh
+#!/bin/bash
+
+# Configuration
+QUERY="query.fasta"
+DATABASE="pdb70"
+OUTPUT_DIR="hhblits_results"
+THREADS=4
+
+# Create output directory
+mkdir -p $OUTPUT_DIR
+
+# Run HHblits search
+echo "Running HHblits search..."
+hhblits \
+  -i $QUERY \
+  -d $DATABASE \
+  -o $OUTPUT_DIR/results.hhr \
+  -oa3m $OUTPUT_DIR/results.a3m \
+  -n 3 \
+  -cpu $THREADS \
+  -e 0.001 \
+  -v 2
+
+echo "Search complete! Results saved to $OUTPUT_DIR/"
+
+# Generate summary statistics
+echo "\nTop 10 hits:"
+grep "^>" $OUTPUT_DIR/results.hhr | head -10
+```
+
+Make it executable and run:
+
+```bash
+chmod +x run_hhblits.sh
+./run_hhblits.sh
+```

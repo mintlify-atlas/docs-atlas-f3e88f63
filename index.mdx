@@ -1,97 +1,128 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "HH-suite Documentation"
+description: "Fast and sensitive remote protein homology detection based on HMM-HMM comparisons"
 ---
 
-## Setting up
+<div style={{
+  background: 'linear-gradient(135deg, #04334b 0%, #00405d 100%)',
+  padding: '3rem 2rem',
+  borderRadius: '6px',
+  color: '#ffffff',
+  marginBottom: '2rem'
+}}>
+  <h1 style={{ color: '#ffffff', marginTop: 0, fontSize: '3rem', fontWeight: 700 }}>
+    HH-suite
+  </h1>
+  <p style={{ color: '#f2f3fa', fontSize: '1.25rem', marginBottom: 0 }}>
+    Open-source software for sensitive protein sequence searching based on pairwise alignment of Hidden Markov Models (HMMs)
+  </p>
+</div>
 
-Get your documentation site up and running in minutes.
+## Get Started
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+HH-suite provides a comprehensive toolkit for protein homology detection and sequence analysis. Choose your installation method and start searching in minutes.
 
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install via conda, Docker, or compile from source
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Run your first sequence search in 5 minutes
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Core Tools" icon="terminal" href="/tools/hhblits">
+    Explore HHblits, HHsearch, and HHalign
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Databases" icon="database" href="/guides/databases">
+    Download and configure protein databases
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Core Tools
 
-Everything you need to create world-class documentation.
+HH-suite includes powerful command-line tools for different protein analysis workflows.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+<CardGroup cols={3}>
+  <Card title="HHblits" icon="bolt" href="/tools/hhblits">
+    Fast iterative sequence database searching
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
+  <Card title="HHsearch" icon="magnifying-glass" href="/tools/hhsearch">
+    Sensitive protein homology detection
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
+  <Card title="HHalign" icon="arrows-left-right" href="/tools/hhalign">
+    Pairwise HMM-HMM alignment
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="HHmake" icon="hammer" href="/tools/hhmake">
+    Build HMMs from alignments
   </Card>
-</Columns>
+  <Card title="HHfilter" icon="filter" href="/tools/hhfilter">
+    Filter multiple sequence alignments
+  </Card>
+  <Card title="HHconsensus" icon="layer-group" href="/tools/hhconsensus">
+    Generate consensus sequences
+  </Card>
+</CardGroup>
 
-## Need inspiration?
+## Key Features
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<CardGroup cols={2}>
+  <Card title="HMM-HMM Comparisons" icon="diagram-project">
+    Profile-to-profile searches for remote homology detection
+  </Card>
+  <Card title="SIMD Optimizations" icon="microchip">
+    SSE2 and AVX2 support for 2x faster performance
+  </Card>
+  <Card title="Parallel Computing" icon="server">
+    MPI and OpenMP support for multi-core processing
+  </Card>
+  <Card title="Major Databases" icon="database">
+    Compatible with Uniclust30, BFD, Pfam, and PDB70
+  </Card>
+</CardGroup>
+
+## Performance Optimized
+
+HH-suite is designed for high-performance protein sequence analysis:
+
+- **SIMD Instructions**: Leverage SSE2, AVX2 for accelerated computation
+- **Parallelization**: Scale with OpenMP threading and MPI clusters
+- **Iterative Search**: HHblits performs multiple search iterations efficiently
+- **Prefiltering**: Fast k-mer-based prefiltering reduces search time
+
+## Popular Use Cases
+
+<Accordion title="Remote Homology Detection">
+  Identify evolutionarily related proteins with very low sequence identity using HHsearch's sensitive HMM-HMM comparison algorithm.
+</Accordion>
+
+<Accordion title="Protein Structure Prediction">
+  Generate multiple sequence alignments with HHblits to improve accuracy of structure prediction methods like AlphaFold.
+</Accordion>
+
+<Accordion title="Functional Annotation">
+  Transfer functional information from known proteins to uncharacterized sequences by detecting distant homologs.
+</Accordion>
+
+<Accordion title="Database Building">
+  Create custom HMM databases for specialized protein families or organisms using HHmake and database utilities.
+</Accordion>
+
+## Citation
+
+If you use HH-suite in your research, please cite:
+
+```
+Steinegger M, Meier M, Mirdita M, Vöhringer H, Haunsberger S J, and Söding J (2019)
+HH-suite3 for fast remote homology detection and deep protein annotation.
+BMC Bioinformatics, 473. doi: 10.1186/s12859-019-3019-7
+```
+
+## Community and Support
+
+<CardGroup cols={2}>
+  <Card title="GitHub Repository" icon="github" href="https://github.com/soedinglab/hh-suite">
+    Report issues and contribute to development
+  </Card>
+  <Card title="User Guide" icon="book" href="https://github.com/soedinglab/hh-suite/wiki">
+    Comprehensive wiki with examples and FAQs
+  </Card>
+</CardGroup>

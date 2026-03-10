@@ -1,0 +1,280 @@
+---
+title: 'A3M Tools'
+description: 'Utilities for compressing, extracting, and manipulating A3M alignment files'
+---
+
+## Overview
+
+HH-suite provides several utilities for working with A3M (FASTA-like) multiple sequence alignments. These tools enable compression, extraction, filtering, and reduction of A3M files, which is essential for managing large alignment databases.
+
+## Available Tools
+
+<CardGroup cols={2}>
+  <Card title="a3m_compress" icon="file-zipper">
+    Compress A3M alignments by storing sequences as references to a sequence database
+  </Card>
+  
+  <Card title="a3m_extract" icon="file-export">
+    Extract compressed A3M alignments back to standard A3M format
+  </Card>
+  
+  <Card title="a3m_reduce" icon="filter">
+    Reduce redundancy in A3M alignments by filtering similar sequences
+  </Card>
+  
+  <Card title="a3m_database_reduce" icon="database">
+    Reduce A3M databases in FFindex format
+  </Card>
+  
+  <Card title="a3m_database_extract" icon="database">
+    Extract A3M alignments from FFindex databases
+  </Card>
+  
+  <Card title="a3m_database_filter" icon="filter-circle">
+    Filter A3M databases based on various criteria
+  </Card>
+</CardGroup>
+
+## a3m_extract
+
+### Overview
+
+Extracts compressed A3M alignments back to standard A3M format. The compressed format stores sequences as indices and block encodings that reference a sequence database.
+
+### Usage
+
+```bash
+a3m_extract -i <input> -o <output> \
+  -d <sequence_db_prefix> \
+  -q <header_db_prefix>
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-i <file>` | Input compressed A3M file or `stdin` |
+| `-o <file>` | Output A3M file or `stdout` |
+| `-d <prefix>` | FFindex sequence database prefix (without `.ffdata`/`.ffindex`) |
+| `-q <prefix>` | FFindex header database prefix |
+| `-h` | Display help message |
+
+### Example
+
+```bash
+a3m_extract -i compressed.ca3m -o output.a3m \
+  -d sequence_db \
+  -q header_db
+```
+
+## Compression Algorithm
+
+<Accordion title="How A3M Compression Works">
+The compression algorithm works by:
+
+1. **Storing the consensus sequence** in plain text
+2. **Referencing sequences** by index from a pre-built sequence database
+3. **Encoding alignments** as blocks of matches, insertions, and deletions:
+   - **Matches**: Upper-case letters aligned to consensus
+   - **Insertions**: Lower-case letters (not in consensus)
+   - **Deletions**: Gaps in the sequence relative to consensus
+
+<Steps>
+  <Step title="Identify Sequence">
+    Extract sequence ID from header and look up in sequence database (source: `a3m_compress.cpp:356-382`)
+  </Step>
+  
+  <Step title="Find Start Position">
+    Determine where the aligned sequence starts in the full sequence (source: `a3m_compress.cpp:477-498`)
+  </Step>
+  
+  <Step title="Encode Blocks">
+    Store sequence as blocks of:
+    - Number of matches (upper-case residues)
+    - Number of insertions (lower-case residues) or deletions (gaps)
+    
+    Each block uses 2 bytes: 1 for matches, 1 for insertions/deletions (source: `a3m_compress.cpp:396-473`)
+  </Step>
+  
+  <Step title="Write Compressed Data">
+    Write:
+    - 4-byte sequence database index
+    - 2-byte start position
+    - 2-byte number of blocks
+    - Block data
+  </Step>
+</Steps>
+</Accordion>
+
+## A3M Format Validation
+
+Source: `scripts/a3m.py`
+
+The A3M format uses specific character meanings:
+
+### Valid Characters
+
+<CodeGroup>
+```python Match States
+VALID_MATCH_STATES = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+# Upper-case amino acids aligned to consensus
+```
+
+```python Insertion States
+VALID_INSERTION_STATES = "abcdefghijklmnopqrstuvwxyz"
+# Lower-case amino acids not aligned to consensus
+```
+
+```python Gap States
+VALID_GAP_STATES = "-."
+# Gaps in alignment
+```
+</CodeGroup>
+
+### Special Sequences
+
+A3M files can include annotation sequences:
+
+| Header | Description | Valid Characters |
+|--------|-------------|------------------|
+| `>ss_pred` | Predicted secondary structure | `E` (extended), `C` (coil), `H` (helix) |
+| `>ss_conf` | Secondary structure confidence | `0-9` (confidence levels) |
+| `>ss_dssp` | DSSP secondary structure | `CHBEGITS-` |
+| `>*_consensus` | Consensus sequence | Standard amino acids |
+
+<Warning>
+Each A3M file should contain exactly one consensus sequence. Multiple consensus sequences will cause an error.
+</Warning>
+
+## Working with FFindex Databases
+
+### a3m_database_extract
+
+Extract specific entries from an A3M FFindex database:
+
+```bash
+a3m_database_extract -i db_a3m -o output.a3m \
+  -d sequence_db \
+  -q header_db \
+  -e entry_name
+```
+
+### a3m_database_reduce
+
+Reduce redundancy in an entire A3M database:
+
+```bash
+a3m_database_reduce -i db_a3m \
+  -o db_a3m_reduced \
+  -d sequence_db \
+  -q header_db \
+  --max-seqid 90
+```
+
+### a3m_database_filter
+
+Filter database entries by various criteria:
+
+```bash
+a3m_database_filter -i db_a3m \
+  -o db_a3m_filtered \
+  -d sequence_db \
+  -q header_db \
+  --min-sequences 10
+```
+
+## Python Utilities
+
+Source: `scripts/a3m.py`
+
+The `a3m.py` module provides Python utilities for A3M manipulation:
+
+```python
+from a3m import A3M_Container
+
+# Read A3M file
+a3m = A3M_Container()
+with open('input.a3m', 'r') as fh:
+    a3m.read_a3m(fh)
+
+print(f"Number of sequences: {a3m.number_sequences}")
+print(f"Match states: {a3m.nr_match_states}")
+
+# Check sequence validity
+a3m.check_sequence(sequence_string)
+
+# Extract subsequence
+sub_a3m = a3m.split_a3m([(start, end)])
+```
+
+### Key Methods
+
+- `check_and_add_sequence()`: Validate and add a sequence to the container
+- `check_match_states()`: Verify all sequences have the same number of match states
+- `split_a3m()`: Extract a subsequence range from the alignment
+- `get_sub_sequence()`: Get a specific region of a sequence
+
+## Performance Tips
+
+<Tip>
+**OpenMP Support**: The A3M compression tools support OpenMP for parallel processing when compiled with OpenMP support (source: `a3m_compress.cpp:11-13`).
+</Tip>
+
+<Accordion title="Best Practices">
+  - **Compress alignments** when storing large databases to save disk space
+  - **Use FFindex format** for databases with many alignments
+  - **Validate A3M files** with `check_a3m.py` before processing
+  - **Keep sequence databases** when using compressed format
+  - **Build separate header and sequence databases** for optimal compression
+</Accordion>
+
+## Common Workflows
+
+### Create Compressed Database
+
+<Steps>
+  <Step title="Build Sequence Database">
+    Extract all sequences and create FFindex databases:
+    ```bash
+    hhsuitedb.py -i alignments/ -o database
+    ```
+  </Step>
+  
+  <Step title="Compress Alignments">
+    Compress A3M files referencing the sequence database:
+    ```bash
+    a3m_compress -i alignment.a3m -o compressed.ca3m \
+      -d database_sequence -q database_header
+    ```
+  </Step>
+  
+  <Step title="Build FFindex">
+    Create FFindex from compressed files:
+    ```bash
+    ffindex_build -s db.ffdata db.ffindex compressed_dir/
+    ```
+  </Step>
+</Steps>
+
+## Error Handling
+
+Common errors and solutions:
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "More than one consensus sequence" | Multiple sequences ending in `_consensus` | Ensure only one consensus per A3M |
+| "No protein sequences could be compressed" | No matching sequences in database | Check sequence IDs match database |
+| "Sequence with zero match states" | Empty or invalid sequence | Validate A3M format |
+| "Diverging number of match states" | Sequences have different lengths | Check alignment integrity |
+
+## Related Tools
+
+- [reformat.pl](/tools/scripts#reformatpl) - Convert between alignment formats
+- [FFindex Tools](/tools/scripts#ffindex-utilities) - Manage FFindex databases
+- [File Formats](/guides/file-formats) - A3M format specification
+
+## See Also
+
+- [Building Custom Databases](/guides/building-custom-databases)
+- [File Formats Guide](/guides/file-formats)
+- [Performance Optimization](/guides/performance)

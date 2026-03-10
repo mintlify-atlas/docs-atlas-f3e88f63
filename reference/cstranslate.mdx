@@ -1,0 +1,127 @@
+---
+title: 'cstranslate'
+description: 'Translate a sequence/alignment into an abstract state alphabet'
+---
+
+## Synopsis
+
+```bash
+cstranslate -i <infile> [options]
+```
+
+## Description
+
+CStranslate translates a sequence or alignment into an abstract state alphabet (AS219). This tool is part of the CS-BLAST package and is used for context-specific sequence representation.
+
+## Required Parameters
+
+<ParamField path="-i" type="file" required>
+  Input file with alignment or sequence
+</ParamField>
+
+## Output Options
+
+<ParamField path="-o" type="file">
+  Output file for generated abstract state sequence (default: &lt;infile&gt;.as)
+</ParamField>
+
+<ParamField path="-a" type="file">
+  Append generated abstract state sequence to this file
+</ParamField>
+
+<ParamField path="-O" type="string" default="seq">
+  Output format:
+  - `seq`: abstract state sequence
+  - `prf`: abstract state profile
+</ParamField>
+
+## Input Options
+
+<ParamField path="-I" type="string" default="auto">
+  Input format: prf, seq, fas, a2m, a3m, or ca3m (default: auto-detect from file extension)
+</ParamField>
+
+<ParamField path="-M" type="integer">
+  Match column assignment for FASTA alignments:
+  - `-1` (default): make columns with residue in first sequence match columns
+  - `[0-100]`: make all FASTA columns with less than X% gaps match columns
+</ParamField>
+
+## Pseudocount Options
+
+<ParamField path="-A" type="file" default="internal">
+  Abstract state alphabet consisting of exactly 219 states
+</ParamField>
+
+<ParamField path="-D" type="file" default="internal">
+  Add context-specific pseudocounts using given context-data
+</ParamField>
+
+<ParamField path="-x" type="float" default="0.90">
+  Pseudocount admix for context-specific pseudocounts (range: 0-1)
+</ParamField>
+
+<ParamField path="-c" type="float" default="12.0">
+  Constant in pseudocount calculation for alignments (range: 0-inf)
+</ParamField>
+
+<ParamField path="-w" type="float" default="1000.0">
+  Weight of abstract state column in emission calculation (range: 0-inf)
+</ParamField>
+
+## FFindex Options
+
+<ParamField path="-f" type="flag">
+  Enable FFindex mode: read from -i &lt;ffindex&gt;, write to -o &lt;ffindex&gt; (do not include _ca3m suffix for ca3m informat). Enables OpenMP if available.
+</ParamField>
+
+## Other Options
+
+<ParamField path="-v" type="boolean" default="true">
+  Verbose mode: show progress and results
+</ParamField>
+
+## Examples
+
+### Translate sequence to abstract states
+
+```bash
+cstranslate -i protein.seq -o protein.as
+```
+
+### Translate alignment with custom pseudocount parameters
+
+```bash
+cstranslate -i alignment.a3m -o output.as -x 0.8 -c 10.0
+```
+
+### Process FFindex database
+
+```bash
+cstranslate -i input_db -o output_db -f -I ca3m
+```
+
+## Output Format
+
+The tool produces abstract state sequences in AS219 alphabet, which represents protein sequences using 219 context-dependent states. When verbose mode is enabled, it shows:
+
+- Position numbers
+- Consensus sequence
+- Match symbols indicating confidence
+- AS219 sequence
+- Confidence values (0-9)
+
+## Exit Codes
+
+- `0`: Success
+- `1`: Error reading input file
+- `2`: Invalid parameters
+
+## See Also
+
+- [hhblits](/reference/hhblits) - Uses CS219 sequences for prefiltering
+- [Databases](/reference/formats/databases) - Database formats
+
+## Notes
+
+CStranslate is typically used as a preprocessing step for HHblits searches. The AS219 alphabet provides a compressed representation that enables fast prefiltering while maintaining sensitivity.

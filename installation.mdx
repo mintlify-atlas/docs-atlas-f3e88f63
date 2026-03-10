@@ -1,0 +1,270 @@
+---
+title: Installation
+description: Install HH-suite using conda, Docker, precompiled binaries, or compile from source
+---
+
+## Prerequisites
+
+Before installing HH-suite, verify your system meets the requirements:
+
+<Steps>
+  <Step title="Check 64-bit System">
+    ```bash
+    uname -a | grep x86_64
+    ```
+    You should see `x86_64` in the output.
+  </Step>
+  <Step title="Check CPU Instruction Set">
+    On Linux:
+    ```bash
+    cat /proc/cpuinfo | grep sse2
+    ```
+    On macOS:
+    ```bash
+    sysctl -a | grep machdep.cpu.features | grep SSE2
+    ```
+    <Tip>
+    If you have AVX2 support, HH-suite will run approximately 2x faster than with SSE2.
+    </Tip>
+  </Step>
+</Steps>
+
+## Installation Methods
+
+<Tabs>
+  <Tab title="Conda (Recommended)">
+    The easiest way to install HH-suite is using conda or mamba:
+
+    ```bash
+    conda install -c conda-forge -c bioconda hhsuite
+    ```
+
+    <Note>
+    This installs HH-suite and all its dependencies in a single command. Perfect for getting started quickly.
+    </Note>
+
+    ### Verify Installation
+    ```bash
+    hhblits -h
+    ```
+
+    ### Using Mamba (Faster)
+    If you have mamba installed, you can use it for faster dependency resolution:
+
+    ```bash
+    mamba install -c conda-forge -c bioconda hhsuite
+    ```
+  </Tab>
+
+  <Tab title="Docker">
+    Run HH-suite in a Docker container without installing it locally:
+
+    ```bash
+    docker pull soedinglab/hh-suite
+    ```
+
+    ### Run HHblits with Docker
+    ```bash
+    docker run -v $(pwd):/data soedinglab/hh-suite \
+      hhblits -i /data/query.fasta -d /data/database -o /data/results.hhr
+    ```
+
+    <Tip>
+    The `-v $(pwd):/data` flag mounts your current directory to `/data` inside the container, allowing you to access local files.
+    </Tip>
+
+    ### Interactive Docker Session
+    ```bash
+    docker run -it -v $(pwd):/data soedinglab/hh-suite /bin/bash
+    ```
+  </Tab>
+
+  <Tab title="Precompiled Binaries">
+    Download statically compiled binaries for Linux systems. Choose between SSE2 and AVX2 builds:
+
+    ### SSE2 Build (Compatible with older CPUs)
+    ```bash
+    wget https://github.com/soedinglab/hh-suite/releases/download/v3.3.0/hhsuite-3.3.0-SSE2-Linux.tar.gz
+    tar xvfz hhsuite-3.3.0-SSE2-Linux.tar.gz
+    export PATH="$(pwd)/bin:$(pwd)/scripts:$PATH"
+    ```
+
+    ### AVX2 Build (Recommended for modern CPUs)
+    ```bash
+    wget https://github.com/soedinglab/hh-suite/releases/download/v3.3.0/hhsuite-3.3.0-AVX2-Linux.tar.gz
+    tar xvfz hhsuite-3.3.0-AVX2-Linux.tar.gz
+    export PATH="$(pwd)/bin:$(pwd)/scripts:$PATH"
+    ```
+
+    <Note>
+    Add the export command to your `~/.bashrc` or `~/.zshrc` to make the PATH change permanent:
+    ```bash
+    echo 'export PATH="/path/to/hhsuite/bin:/path/to/hhsuite/scripts:$PATH"' >> ~/.bashrc
+    ```
+    </Note>
+
+    ### More Precompiled Options
+    For ARM64, PPC64LE, and other architectures, visit [mmseqs.com/hhsuite](https://mmseqs.com/hhsuite).
+  </Tab>
+
+  <Tab title="Compile from Source">
+    Compile HH-suite from source for custom configurations or MPI support.
+
+    ### Requirements
+    - C/C++ compiler (GCC ≥ 4.8 or Clang ≥ 3.6)
+    - CMake ≥ 2.8.12
+    - Git
+
+    ### Compilation Steps
+
+    <Steps>
+      <Step title="Clone Repository">
+        ```bash
+        git clone https://github.com/soedinglab/hh-suite.git
+        cd hh-suite
+        ```
+      </Step>
+
+      <Step title="Create Build Directory">
+        ```bash
+        mkdir -p build && cd build
+        ```
+      </Step>
+
+      <Step title="Configure with CMake">
+        ```bash
+        cmake -DCMAKE_INSTALL_PREFIX=. ..
+        ```
+
+        <Accordion title="CMake Options">
+          - `-DCMAKE_BUILD_TYPE=Release` - Build optimized binaries (default)
+          - `-DHAVE_MPI=1` - Enable MPI support for parallel processing
+          - `-DHAVE_SSE2=1` - Enable SSE2 optimizations
+          - `-DHAVE_AVX2=1` - Enable AVX2 optimizations (faster)
+        </Accordion>
+      </Step>
+
+      <Step title="Compile and Install">
+        ```bash
+        make -j 4 && make install
+        ```
+        Replace `4` with the number of CPU cores you want to use.
+      </Step>
+
+      <Step title="Update PATH">
+        ```bash
+        export PATH="$(pwd)/bin:$(pwd)/scripts:$PATH"
+        ```
+      </Step>
+    </Steps>
+
+    ### macOS Compilation
+
+    <Warning>
+    The default macOS `clang` compiler doesn't support OpenMP. Install GCC from Homebrew for multithreading support.
+    </Warning>
+
+    ```bash
+    # Install GCC via Homebrew
+    brew install gcc
+
+    # Clone and build
+    git clone https://github.com/soedinglab/hh-suite.git
+    mkdir -p hh-suite/build && cd hh-suite/build
+
+    # Use GCC instead of clang
+    CC="$(brew --prefix)/bin/gcc-10" CXX="$(brew --prefix)/bin/g++-10" \
+      cmake -DCMAKE_INSTALL_PREFIX=. ..
+    
+    make -j 4 && make install
+    export PATH="$(pwd)/bin:$(pwd)/scripts:$PATH"
+    ```
+
+    ### MPI Support
+
+    <Note>
+    Only source-compiled versions support MPI, as MPI configuration is environment-specific.
+    </Note>
+
+    To enable MPI for large-scale parallel searches:
+
+    ```bash
+    cmake -DCMAKE_INSTALL_PREFIX=. -DHAVE_MPI=1 ..
+    make -j 4 && make install
+    ```
+  </Tab>
+</Tabs>
+
+## Verify Installation
+
+Confirm HH-suite is installed correctly:
+
+<CodeGroup>
+```bash Check Version
+hhblits -version
+```
+
+```bash Test Run
+hhblits -h
+```
+
+```bash Check All Tools
+which hhblits hhsearch hhmake hhalign
+```
+</CodeGroup>
+
+You should see version 3.3.0 and the help message.
+
+## Database Setup
+
+HH-suite requires sequence or profile databases to search against. See the [Databases](/guides/databases) section for:
+
+- Downloading prebuilt databases (Uniclust30, BFD, PDB70, Pfam)
+- Building custom databases
+- Database formats and requirements
+
+<Card title="Download Databases" icon="database" href="/guides/databases">
+  Learn how to download and set up databases for HH-suite
+</Card>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Command not found after installation">
+    Make sure the HH-suite binaries are in your PATH:
+    ```bash
+    export PATH="/path/to/hhsuite/bin:/path/to/hhsuite/scripts:$PATH"
+    ```
+    Add this to your `~/.bashrc` or `~/.zshrc` for persistence.
+  </Accordion>
+
+  <Accordion title="Illegal instruction error">
+    You may be using an AVX2 build on a CPU that doesn't support AVX2. Download the SSE2 build instead:
+    ```bash
+    wget https://github.com/soedinglab/hh-suite/releases/download/v3.3.0/hhsuite-3.3.0-SSE2-Linux.tar.gz
+    ```
+  </Accordion>
+
+  <Accordion title="Slow performance on macOS">
+    If you compiled with the default clang compiler, recompile using GCC from Homebrew to enable OpenMP multithreading support.
+  </Accordion>
+
+  <Accordion title="Permission denied when running Docker">
+    Run Docker commands with `sudo` or add your user to the docker group:
+    ```bash
+    sudo usermod -aG docker $USER
+    ```
+    Then log out and log back in.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Run your first protein search
+  </Card>
+  <Card title="Download Databases" icon="database" href="/guides/databases">
+    Set up sequence and profile databases
+  </Card>
+</CardGroup>

@@ -1,0 +1,545 @@
+---
+title: 'Building Custom Databases'
+description: 'Create custom HH-suite databases from your own sequences and alignments'
+---
+
+## Overview
+
+Creating custom HH-suite databases allows you to search against specialized sequence collections, proprietary data, or domain-specific protein sets. This guide covers the complete workflow from sequences to searchable databases.
+
+## Database Components
+
+HH-suite databases consist of several interconnected files:
+
+<CardGroup cols={2}>
+  <Card title="A3M Alignments" icon="align-left">
+    Multiple sequence alignments in A3M format, stored in FFindex
+  </Card>
+  
+  <Card title="HMM Profiles" icon="wave-square">
+    Hidden Markov Models generated from alignments, in FFindex
+  </Card>
+  
+  <Card title="CS219 Profiles" icon="binary">
+    Context-specific state sequences (optional), in FFindex
+  </Card>
+  
+  <Card title="Index Files" icon="list">
+    FFindex files for efficient random access
+  </Card>
+</CardGroup>
+
+### Required Files
+
+```
+my_database_a3m.ffdata       # A3M alignments data
+my_database_a3m.ffindex      # A3M index
+my_database_hhm.ffdata       # HMM profiles data
+my_database_hhm.ffindex      # HMM index
+```
+
+### Optional Files
+
+```
+my_database_cs219.ffdata     # Context-specific profiles data
+my_database_cs219.ffindex    # CS219 index
+```
+
+<Note>
+All files with the same prefix must be in the same directory. HH-suite searches for files matching the database basename.
+</Note>
+
+## Quick Start
+
+### Using hhsuitedb.py
+
+The simplest way to build a database:
+
+```bash
+# From A3M alignment directory
+hhsuitedb.py -ia3m alignments/ -o my_database
+
+# From sequences (will generate alignments)
+hhsuitedb.py -iseq sequences.fasta -o my_database
+```
+
+This automatically:
+1. Creates FFindex databases
+2. Generates HMM profiles with `hhmake`
+3. Optimizes database layout
+
+## Step-by-Step Workflow
+
+### Method 1: From Sequences
+
+<Steps>
+  <Step title="Prepare Input Sequences">
+    Create FASTA file with your sequences:
+    ```bash
+    cat > sequences.fasta << 'EOF'
+    >protein1
+    MKLLIVLLFSSVLAHVVFPGTASTPMTPN
+    >protein2
+    ARTKQTARKSTGGKAPRKQLATKAARKS
+    >protein3
+    MTEYKLVVVGAGGVGKSALTIQLIQNH
+    EOF
+    ```
+  </Step>
+  
+  <Step title="Generate Multiple Alignments">
+    Build MSAs for each sequence using HHblits:
+    ```bash
+    mkdir -p alignments
+    
+    for seq in sequences/*.fasta; do
+      name=$(basename $seq .fasta)
+      hhblits -i $seq -d uniclust30 \
+        -oa3m alignments/${name}.a3m \
+        -n 3 -cpu 8
+    done
+    ```
+  </Step>
+  
+  <Step title="Build Database">
+    ```bash
+    hhsuitedb.py -ia3m alignments/ -o my_database
+    ```
+  </Step>
+  
+  <Step title="Test Database">
+    ```bash
+    hhsearch -i query.a3m -d my_database -o results.hhr
+    ```
+  </Step>
+</Steps>
+
+### Method 2: From Existing Alignments
+
+<Steps>
+  <Step title="Collect A3M Files">
+    Organize your A3M alignments in a directory:
+    ```bash
+    mkdir -p alignments
+    cp /path/to/*.a3m alignments/
+    ```
+  </Step>
+  
+  <Step title="Build FFindex Database">
+    ```bash
+    # Create A3M FFindex
+    ffindex_build -s my_database_a3m.ffdata \
+      my_database_a3m.ffindex \
+      alignments/
+    ```
+  </Step>
+  
+  <Step title="Generate HMM Profiles">
+    ```bash
+    # Create HMM profiles from A3M
+    mkdir -p hhms
+    
+    for a3m in alignments/*.a3m; do
+      name=$(basename $a3m .a3m)
+      hhmake -i $a3m -o hhms/${name}.hhm
+    done
+    
+    # Build HMM FFindex
+    ffindex_build -s my_database_hhm.ffdata \
+      my_database_hhm.ffindex \
+      hhms/
+    ```
+  </Step>
+  
+  <Step title="Optimize Database (Optional)">
+    ```bash
+    # Reorganize for sequential access
+    ffindex_build -as \
+      my_database_a3m.ffdata.opt \
+      my_database_a3m.ffindex.opt \
+      -d my_database_a3m.ffdata \
+      -i my_database_a3m.ffindex
+    
+    mv my_database_a3m.ffdata.opt my_database_a3m.ffdata
+    mv my_database_a3m.ffindex.opt my_database_a3m.ffindex
+    
+    # Repeat for HMM database
+    ffindex_build -as \
+      my_database_hhm.ffdata.opt \
+      my_database_hhm.ffindex.opt \
+      -d my_database_hhm.ffdata \
+      -i my_database_hhm.ffindex
+    
+    mv my_database_hhm.ffdata.opt my_database_hhm.ffdata
+    mv my_database_hhm.ffindex.opt my_database_hhm.ffindex
+    ```
+  </Step>
+</Steps>
+
+### Method 3: From PDB Structures
+
+<Steps>
+  <Step title="Extract Sequences from PDB">
+    ```bash
+    mkdir -p sequences
+    
+    for pdb in structures/*.pdb; do
+      name=$(basename $pdb .pdb)
+      pdb2fasta.pl $pdb > sequences/${name}.fasta
+    done
+    ```
+  </Step>
+  
+  <Step title="Add Secondary Structure">
+    ```bash
+    mkdir -p alignments
+    
+    for seq in sequences/*.fasta; do
+      name=$(basename $seq .fasta)
+      # Convert to A3M
+      reformat.pl fas a3m $seq temp.a3m
+      # Add secondary structure from PDB
+      addss.pl temp.a3m structures/${name}.pdb > alignments/${name}.a3m
+    done
+    ```
+  </Step>
+  
+  <Step title="Build Database">
+    ```bash
+    hhsuitedb.py -ia3m alignments/ -o my_pdb_database
+    ```
+  </Step>
+</Steps>
+
+## Advanced Options
+
+### Adding Context-Specific Profiles
+
+CS219 profiles improve search sensitivity:
+
+```bash
+# Generate CS219 profiles
+mkdir -p cs219
+
+for a3m in alignments/*.a3m; do
+  name=$(basename $a3m .a3m)
+  cstranslate -i $a3m -o cs219/${name}.as
+done
+
+# Build CS219 FFindex
+ffindex_build -s my_database_cs219.ffdata \
+  my_database_cs219.ffindex \
+  cs219/
+```
+
+### Compressed A3M Format
+
+For very large databases, use compressed CA3M format:
+
+<Steps>
+  <Step title="Build Sequence Database">
+    ```bash
+    # Extract all sequences
+    cat alignments/*.a3m | grep -v '^>' | tr -d '-' > all_sequences.txt
+    
+    # Build sequence FFindex
+    ffindex_build -s sequence_db.ffdata sequence_db.ffindex sequences/
+    ```
+  </Step>
+  
+  <Step title="Compress Alignments">
+    ```bash
+    mkdir -p compressed
+    
+    for a3m in alignments/*.a3m; do
+      name=$(basename $a3m .a3m)
+      a3m_compress -i $a3m -o compressed/${name}.ca3m \
+        -d sequence_db -q header_db
+    done
+    ```
+  </Step>
+  
+  <Step title="Build CA3M Database">
+    ```bash
+    ffindex_build -s my_database_ca3m.ffdata \
+      my_database_ca3m.ffindex \
+      compressed/
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+CA3M compression can reduce database size by 60-80%, but requires maintaining the sequence database.
+</Tip>
+
+## Database Quality Control
+
+### Validation
+
+<CodeGroup>
+```bash Check Database Files
+# Verify all required files exist
+for ext in a3m.ffdata a3m.ffindex hhm.ffdata hhm.ffindex; do
+  if [ -f "my_database_${ext}" ]; then
+    echo "✓ ${ext} found"
+  else
+    echo "✗ ${ext} missing"
+  fi
+done
+```
+
+```bash Check Entry Count
+# Count entries
+wc -l my_database_a3m.ffindex
+wc -l my_database_hhm.ffindex
+# Should be equal
+```
+
+```bash Test Random Entry
+# Extract and verify random entry
+entry=$(head -1 my_database_a3m.ffindex | cut -f1)
+ffindex_get my_database_a3m.ffdata my_database_a3m.ffindex $entry
+```
+
+```bash Test Search
+# Run test search
+hhsearch -i test_query.a3m -d my_database -o test.hhr
+```
+</CodeGroup>
+
+### Quality Metrics
+
+```bash
+#!/bin/bash
+
+echo "Database Statistics:"
+echo "-------------------"
+
+# Number of entries
+entries=$(wc -l < my_database_a3m.ffindex)
+echo "Entries: $entries"
+
+# Database size
+size=$(du -h my_database_*.ff* | awk '{sum+=$1} END {print sum}')
+echo "Total size: $size"
+
+# Average alignment length
+ffindex_get my_database_a3m.ffdata my_database_a3m.ffindex | \
+  awk '/^>/ {if (seq) print length(seq); seq=""} !/^>/ {seq=seq $0} END {if (seq) print length(seq)}' | \
+  awk '{sum+=$1; n++} END {if (n>0) print "Avg length:", sum/n}'
+```
+
+## Updating Databases
+
+### Add New Entries
+
+```bash
+# Add new A3M files
+ffindex_build -s my_database_a3m.ffdata \
+  my_database_a3m.ffindex \
+  -a new_alignments/
+
+# Generate HMMs for new entries
+for a3m in new_alignments/*.a3m; do
+  name=$(basename $a3m .a3m)
+  hhmake -i $a3m -o new_hhms/${name}.hhm
+done
+
+# Add to HMM database
+ffindex_build -s my_database_hhm.ffdata \
+  my_database_hhm.ffindex \
+  -a new_hhms/
+```
+
+### Remove Entries
+
+```bash
+# Create list of entries to remove
+cat > remove.list << EOF
+entry1
+entry2
+entry3
+EOF
+
+# Remove from A3M database
+ffindex_modify -u -f remove.list my_database_a3m.ffindex
+
+# Remove from HMM database
+ffindex_modify -u -f remove.list my_database_hhm.ffindex
+```
+
+### Rebuild Database
+
+For major updates, rebuild from scratch:
+
+```bash
+# Extract all entries
+mkdir -p rebuild/
+ffindex_unpack my_database_a3m.ffdata my_database_a3m.ffindex rebuild/
+
+# Add/remove/modify entries in rebuild/
+
+# Rebuild database
+hhsuitedb.py -ia3m rebuild/ -o my_database_new
+
+# Replace old database
+mv my_database_new* ./
+```
+
+## Performance Optimization
+
+### Database Size Considerations
+
+| Database Size | Entries | Recommended RAM | Search Time |
+|---------------|---------|----------------|-------------|
+| Small | &lt;10K | 8 GB | Seconds |
+| Medium | 10K-100K | 16 GB | Minutes |
+| Large | 100K-1M | 32 GB | Tens of minutes |
+| Very Large | &gt;1M | 64+ GB | Hours |
+
+### Optimization Tips
+
+<Accordion title="Database Performance Best Practices">
+  
+  ✓ **Optimize FFindex layout** with `ffindex_build -as` for sequential access
+  
+  ✓ **Use SSD storage** for databases to reduce I/O bottleneck
+  
+  ✓ **Filter redundant sequences** before building (e.g., CD-HIT at 90% identity)
+  
+  ✓ **Add CS219 profiles** for improved search sensitivity
+  
+  ✓ **Compress with CA3M** for very large databases to save disk space
+  
+  ✓ **Split very large databases** into chunks for parallel searching
+  
+  ✓ **Keep databases on local disk** rather than NFS when possible
+  
+  ✓ **Prune short or low-quality alignments** (&lt;30 residues, &lt;5 sequences)
+  
+  ✓ **Use representative sequences** from clustered sequence collections
+  
+  ✓ **Add secondary structure** information when available
+
+</Accordion>
+
+## Troubleshooting
+
+### Common Issues
+
+<Warning>
+**Error: "Database not found"**
+
+Check:
+- Both `.ffdata` and `.ffindex` files exist
+- File permissions are readable
+- Full path or basename is correct (without extension)
+- Files are not empty
+</Warning>
+
+<Warning>
+**Error: "Could not read database entry"**
+
+Solutions:
+- Rebuild database with `hhsuitedb.py`
+- Check for file corruption: `ffindex_get` each entry
+- Verify FFindex consistency
+</Warning>
+
+<Warning>
+**Error: "Mismatched A3M and HMM databases"**
+
+Cause: Different number of entries in A3M vs HMM database
+
+Solution:
+- Regenerate HMMs for all A3M files
+- Ensure same entry names in both databases
+- Check for failed `hhmake` conversions
+</Warning>
+
+### Validation Script
+
+```bash
+#!/bin/bash
+
+DB=$1
+
+echo "Validating database: $DB"
+
+# Check files exist
+for ext in a3m.ffdata a3m.ffindex hhm.ffdata hhm.ffindex; do
+  if [ ! -f "${DB}_${ext}" ]; then
+    echo "ERROR: Missing ${ext}"
+    exit 1
+  fi
+done
+
+# Check entry counts match
+a3m_count=$(wc -l < ${DB}_a3m.ffindex)
+hhm_count=$(wc -l < ${DB}_hhm.ffindex)
+
+if [ "$a3m_count" -ne "$hhm_count" ]; then
+  echo "ERROR: Entry count mismatch"
+  echo "  A3M: $a3m_count"
+  echo "  HMM: $hhm_count"
+  exit 1
+fi
+
+echo "✓ Database validation passed"
+echo "  Entries: $a3m_count"
+```
+
+## Example Workflows
+
+### Specialized Domain Database
+
+```bash
+# Build kinase domain database
+# 1. Search Pfam for kinase domains
+hmmsearch kinase.hmm uniprot.fasta > kinase_hits.txt
+
+# 2. Extract sequences
+awk '/^>>/ {print $2}' kinase_hits.txt > kinase_ids.txt
+seqtk subseq uniprot.fasta kinase_ids.txt > kinases.fasta
+
+# 3. Generate alignments
+for seq in kinases/*.fasta; do
+  hhblits -i $seq -d uniclust30 -oa3m alignments/$(basename $seq .fasta).a3m
+done
+
+# 4. Build database
+hhsuitedb.py -ia3m alignments/ -o kinase_database
+```
+
+### PDB Subset Database
+
+```bash
+# Build database of all PDB proteins <200 residues
+
+# 1. Filter by length
+for pdb in pdb/*.pdb; do
+  length=$(grep ^ATOM $pdb | tail -1 | awk '{print $6}')
+  if [ $length -lt 200 ]; then
+    cp $pdb small_proteins/
+  fi
+done
+
+# 2. Extract sequences with secondary structure
+for pdb in small_proteins/*.pdb; do
+  name=$(basename $pdb .pdb)
+  pdb2fasta.pl $pdb > sequences/${name}.fasta
+  reformat.pl fas a3m sequences/${name}.fasta temp.a3m
+  addss.pl temp.a3m $pdb > alignments/${name}.a3m
+done
+
+# 3. Build database
+hhsuitedb.py -ia3m alignments/ -o small_proteins_db
+```
+
+## See Also
+
+- [Available Databases](/guides/databases) - Pre-built database options
+- [File Formats](/guides/file-formats) - A3M and HHM format specifications
+- [A3M Tools](/tools/a3m-tools) - Alignment manipulation utilities
+- [Helper Scripts](/tools/scripts) - Database building utilities
+- [Performance Optimization](/guides/performance) - Database search optimization

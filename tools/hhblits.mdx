@@ -1,0 +1,221 @@
+---
+title: HHblits
+description: HMM-HMM-based lightning-fast iterative sequence search
+---
+
+HHblits is HH-suite's most powerful tool for sensitive, iterative protein sequence searching. It represents both query and database sequences as Hidden Markov Models (HMMs) and performs iterative searches to build high-quality multiple sequence alignments.
+
+## Overview
+
+HHblits combines the sensitivity of HMM-HMM comparison with the speed of a prefilter to perform lightning-fast iterative sequence searches. It's designed to detect remote homologs that might be missed by traditional sequence search methods like BLAST.
+
+### Key Features
+
+- **Iterative searching**: Builds a profile by merging significant matches in multiple rounds
+- **HMM-HMM comparison**: Compares profile HMMs for maximum sensitivity
+- **Fast prefilter**: Uses ungapped alignment for rapid candidate identification
+- **MSA generation**: Creates high-quality multiple sequence alignments
+
+## When to Use HHblits
+
+Use HHblits when you need to:
+
+- **Find remote homologs**: Detect distantly related proteins that share similar structures but low sequence identity
+- **Build comprehensive MSAs**: Generate multiple sequence alignments for downstream analysis
+- **Perform iterative searches**: Progressively expand your search profile across multiple rounds
+- **Search large databases**: Leverage the prefilter for fast searches in databases like Uniclust30 or BFD
+
+<Note>
+For searching pre-built HMM databases without iteration, use [hhsearch](/tools/hhsearch) instead.
+</Note>
+
+## Basic Usage
+
+<Steps>
+  <Step title="Single iteration search">
+    Perform a single search iteration to find homologs:
+    
+    ```bash
+    hhblits -i query.fas -o results.hhr -n 1 -d uniclust30
+    ```
+  </Step>
+
+  <Step title="Iterative search with MSA output">
+    Perform multiple iterations and generate an alignment:
+    
+    ```bash
+    hhblits -i query.fas -o results.hhr -oa3m query.a3m -d uniclust30
+    ```
+  </Step>
+
+  <Step title="Control search sensitivity">
+    Adjust E-value threshold and iteration count:
+    
+    ```bash
+    hhblits -i query.fas -o results.hhr -n 3 -e 0.001 -d uniclust30
+    ```
+  </Step>
+</Steps>
+
+## Common Use Cases
+
+### Building a Profile for Structure Prediction
+
+Generate a deep MSA for AlphaFold or other structure prediction tools:
+
+```bash
+hhblits -i protein.fas -o protein.hhr -oa3m protein.a3m -n 3 -d uniclust30
+```
+
+### Searching Multiple Databases
+
+Search against multiple databases in a single run:
+
+```bash
+hhblits -i query.fas -o results.hhr \
+  -d uniclust30 \
+  -d pdb70 \
+  -n 2
+```
+
+### One-liner for Quick Homology Search
+
+From README.md example:
+
+```bash
+hhblits -i query.fas -o query.hhr -d ./uniclust30
+```
+
+### Generate MSA Without Filtering
+
+Keep all sequences in the result alignment:
+
+```bash
+hhblits -i query.fas -oa3m query.a3m -d uniclust30 -all
+```
+
+## Key Parameters
+
+<AccordionGroup>
+  <Accordion title="Input/Output Options">
+    - `-i <file>` - Input query (FASTA, A3M, or HMM format)
+    - `-o <file>` - Results in HHR format (default: `<infile>.hhr`)
+    - `-oa3m <file>` - Output MSA in A3M format
+    - `-opsi <file>` - Output MSA in PSI-BLAST format
+    - `-ohhm <file>` - Output HMM file
+  </Accordion>
+
+  <Accordion title="Search Parameters">
+    - `-d <name>` - Database basename (can be specified multiple times)
+    - `-n [1,8]` - Number of search iterations (default: 2)
+    - `-e [0,1]` - E-value threshold for inclusion (default: 0.001)
+    - `-E [0,inf]` - E-value threshold for reporting (default: depends on mode)
+  </Accordion>
+
+  <Accordion title="Alignment Filtering">
+    - `-id [0,100]` - Maximum pairwise sequence identity % (default: 90)
+    - `-diff [0,inf]` - Keep diverse sequences, Ndiff per 50-column block (default: 1000)
+    - `-cov [0,100]` - Minimum coverage with master sequence % (default: 0)
+    - `-qid [0,100]` - Minimum sequence identity with master % (default: 0)
+    - `-qsc [-inf,100]` - Minimum score per column (default: -20.0)
+  </Accordion>
+
+  <Accordion title="Performance Options">
+    - `-cpu <int>` - Number of CPU threads (default: system-dependent)
+    - `-noprefilt` - Disable prefilter for maximum sensitivity
+    - `-maxfilt <int>` - Max hits passing second prefilter
+  </Accordion>
+</AccordionGroup>
+
+## Output Format
+
+<CodeGroup>
+```text HHR Format (Standard Output)
+Query         query_protein
+Match_columns 250
+No_of_seqs    1500 out of 2000
+
+ No Hit                             Prob E-value P-value  Score    SS Cols Query HMM Template HMM
+  1 1ABC_A Protein description      99.9     0.0   0.0    250.5  10.2  230   1-240    5-238 (300)
+  2 2XYZ_B Another protein          98.5   0.001   1e-6   180.3   8.5  200  10-220   15-218 (250)
+```
+
+```text A3M Format (Alignment Output)
+>query_protein
+MSTVKGYRILLAGAIDSFSLTESDKPTYRLVGPSGCSGKTTLLNAIAGESPTSGKVTLSGG
+>match_1
+MSTVKGYRILLAGAIDSFSLTESDKPTYRLVGPSGCSGKTTLLNAIAGESPTSGKVTLSGG
+>match_2
+mstvkgyriLLAGAIDSFSLTESDKPTYRLVGPSGCSGKTTLLNAIAGESPtsgkvtlsgg
+```
+</CodeGroup>
+
+<Note>
+In A3M format:
+- **Uppercase** = match states (aligned columns)
+- **Lowercase** = insert states (gaps in the consensus)
+- **-** = delete states (gaps in the sequence)
+</Note>
+
+## Tips and Best Practices
+
+<Tip>
+**Iteration count**: 2-3 iterations usually provide a good balance between sensitivity and specificity. More iterations can improve the MSA but may introduce false positives.
+</Tip>
+
+<Warning>
+Using `-glob` (global alignment) with iterative searches (n ≥ 2) is deprecated, as non-homologous segments can corrupt the MSA. Stick with local alignment (default).
+</Warning>
+
+<Tip>
+**Database selection**: 
+- Use **Uniclust30** for general protein searches
+- Use **BFD** for maximum coverage (2.5 billion sequences)
+- Use **PDB70** when you need structural information
+</Tip>
+
+## Advanced Options
+
+### Controlling MAC Realignment
+
+Adjust the Maximum Accuracy (MAC) algorithm parameters:
+
+```bash
+hhblits -i query.fas -o results.hhr -d uniclust30 \
+  -mact 0.35 \    # Threshold for greediness (0=global, >0.1=local)
+  -realign_max 500 # Max number of hits to realign
+```
+
+### Filtering During Search
+
+Control intermediate filtering to manage memory:
+
+```bash
+hhblits -i query.fas -o results.hhr -d uniclust30 \
+  -interim_filter FULL \  # NONE or FULL
+  -maxseq 10000            # Max sequences in MSA
+```
+
+### Custom Pseudocount Settings
+
+Fine-tune context-specific pseudocounts:
+
+```bash
+hhblits -i query.fas -o results.hhr -d uniclust30 \
+  -pc_hhm_contxt_mode 2 \  # Diversity-dependent mode
+  -pc_hhm_contxt_a 0.9 \   # Overall admixture
+  -pc_hhm_contxt_b 4.0     # Neff threshold
+```
+
+## Related Tools
+
+- [**hhsearch**](/tools/hhsearch) - Search HMM databases without iteration
+- [**hhmake**](/tools/hhmake) - Convert MSA to HMM format
+- [**hhfilter**](/tools/hhfilter) - Filter alignments by sequence identity
+- [**hhalign**](/tools/hhalign) - Pairwise HMM-HMM alignment
+
+## References
+
+For detailed algorithm information, see:
+
+Steinegger M, Meier M, Mirdita M, Vöhringer H, Haunsberger SJ, Söding J (2019). HH-suite3 for fast remote homology detection and deep protein annotation. *BMC Bioinformatics*, 473. [doi: 10.1186/s12859-019-3019-7](https://doi.org/10.1186/s12859-019-3019-7)

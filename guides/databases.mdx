@@ -1,0 +1,323 @@
+---
+title: 'Available Databases'
+description: 'Pre-built sequence and structure databases for HH-suite searches'
+---
+
+## Overview
+
+HH-suite can search against various pre-built protein databases optimized for remote homology detection. These databases range from comprehensive sequence collections to specialized structure and domain databases.
+
+## Recommended Databases
+
+<CardGroup cols={2}>
+  <Card title="Uniclust30" icon="database" href="#uniclust30">
+    Comprehensive clustered protein sequences at 30% identity
+  </Card>
+  
+  <Card title="BFD" icon="globe" href="#bfd">
+    Big Fantastic Database with 2.5 billion environmental sequences
+  </Card>
+  
+  <Card title="PDB70" icon="cube" href="#pdb70">
+    Representative protein structures from the PDB
+  </Card>
+  
+  <Card title="Pfam" icon="circle-nodes" href="#pfam">
+    Curated protein family database
+  </Card>
+</CardGroup>
+
+## Uniclust30
+
+### Description
+
+Uniclust30 is a comprehensive protein sequence database clustered at 30% sequence identity. It provides excellent coverage for homology detection while maintaining reasonable database size.
+
+**Key Features:**
+- Clustered from UniProt at 30% sequence identity
+- Updated regularly
+- Optimized for HHblits iterative searches
+- Good balance of sensitivity and speed
+
+### Download
+
+```bash
+wget http://wwwuser.gwdg.de/~compbiol/uniclust/2023_02/UniRef30_2023_02_hhsuite.tar.gz
+tar xzvf UniRef30_2023_02_hhsuite.tar.gz
+```
+
+### Usage
+
+```bash
+hhblits -i query.fasta -d UniRef30_2023_02 -o results.hhr -oa3m query.a3m
+```
+
+### Reference
+
+> Mirdita M, von den Driesch L, Galiez C, Martin MJ, Söding J, Steinegger M (2017)
+> Uniclust databases of clustered and deeply annotated protein sequences and alignments.
+> *Nucleic Acids Research*, 45(D1):D170-D176.
+> [doi: 10.1093/nar/gkw1081](https://doi.org/10.1093/nar/gkw1081)
+
+<Tip>
+Uniclust30 is the recommended database for most HHblits searches. It provides the best balance between sensitivity, speed, and database size.
+</Tip>
+
+## BFD
+
+### Description
+
+The Big Fantastic Database (BFD) contains approximately 2.5 billion protein sequences, mostly from environmental samples. It provides maximum sensitivity for detecting remote homologs.
+
+**Key Features:**
+- 2.5+ billion sequences
+- Mostly environmental (metagenomic) sequences
+- Highest sensitivity for remote homology detection
+- Significantly larger and slower than Uniclust30
+- Used by AlphaFold for MSA generation
+
+### Download
+
+```bash
+wget https://bfd.mmseqs.com/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt.tar.gz
+tar xzvf bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt.tar.gz
+```
+
+<Warning>
+BFD is extremely large (>1 TB uncompressed). Ensure you have sufficient disk space and memory before downloading.
+</Warning>
+
+### Usage
+
+```bash
+hhblits -i query.fasta -d bfd_metaclust_clu_complete_id30_c90_final_seq \
+  -o results.hhr -oa3m query.a3m -n 3 -cpu 8
+```
+
+### Reference
+
+> Steinegger M, Söding J (2019)
+> Clustering huge protein sequence sets in linear time.
+> *Nature Communications*, 10:2542.
+> [doi: 10.1038/s41592-019-0437-4](https://doi.org/10.1038/s41592-019-0437-4)
+
+## PDB70
+
+### Description
+
+PDB70 is a filtered subset of protein structures from the Protein Data Bank, clustered at 70% maximum sequence identity. It's ideal for structure-based searches and homology modeling.
+
+**Key Features:**
+- Representative protein structures from PDB
+- Clustered at 70% sequence identity
+- Includes secondary structure information
+- Updated weekly
+- Essential for structure prediction and modeling
+
+### Download
+
+```bash
+wget http://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/pdb70_from_mmcif_latest.tar.gz
+tar xzvf pdb70_from_mmcif_latest.tar.gz
+```
+
+### Usage
+
+```bash
+hhsearch -i query.hhm -d pdb70 -o results.hhr -atab results.atab
+```
+
+For structure modeling:
+
+```bash
+hhsearch -i query.hhm -d pdb70 -o results.hhr
+hhmakemodel.py -i results.hhr -ts template.pdb -o model.pdb
+```
+
+<Note>
+PDB70 searches are typically performed with `hhsearch` after building an HMM profile from a multiple alignment, not directly with `hhblits`.
+</Note>
+
+## Pfam
+
+### Description
+
+Pfam is a curated database of protein families, each represented by multiple sequence alignments and HMMs. It's useful for domain annotation and functional classification.
+
+**Key Features:**
+- Manually curated protein families
+- High-quality seed alignments
+- Comprehensive functional annotation
+- Domain architecture information
+- Standard for protein family classification
+
+### Download
+
+```bash
+wget http://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/pfamA_35.0.tar.gz
+tar xzvf pfamA_35.0.tar.gz
+```
+
+### Usage
+
+```bash
+hhsearch -i query.hhm -d pfamA_35.0 -o results.hhr
+```
+
+### Reference
+
+> Mistry J, et al. (2021)
+> Pfam: The protein families database in 2021.
+> *Nucleic Acids Research*, 49(D1):D412-D419.
+> [doi: 10.1093/nar/gkaa913](https://doi.org/10.1093/nar/gkaa913)
+
+## SCOP
+
+### Description
+
+Structural Classification of Proteins database, organized hierarchically by fold, superfamily, and family.
+
+### Download
+
+```bash
+wget http://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/scop70_1.75.tar.gz
+tar xzvf scop70_1.75.tar.gz
+```
+
+### Usage
+
+```bash
+hhsearch -i query.hhm -d scop70_1.75 -o results.hhr
+```
+
+## Additional Databases
+
+### MPI Bioinformatics Toolkit Databases
+
+The [MPI Bioinformatics Toolkit](https://toolkit.tuebingen.mpg.de) maintains additional specialized databases:
+
+- **COG** - Clusters of Orthologous Groups
+- **ECOG** - Evolutionary Genealogy of Genes
+- **CDD** - Conserved Domain Database
+- **dbCAN** - Carbohydrate-Active Enzymes database
+- **SMART** - Simple Modular Architecture Research Tool
+
+```bash
+wget http://ftp.tuebingen.mpg.de/pub/ebio/protevo/toolkit/databases/hhsuite_dbs/
+```
+
+## Database Selection Guide
+
+<Accordion title="Which database should I use?">
+  
+  **For general homology searches:**
+  - Start with **Uniclust30** - best balance of speed and sensitivity
+  - Use **BFD** if you need maximum sensitivity and have computational resources
+  
+  **For structure prediction:**
+  - Use **PDB70** to find structural templates
+  - Search after generating an MSA with Uniclust30 or BFD
+  
+  **For domain/family annotation:**
+  - Use **Pfam** for standard family classification
+  - Use **SCOP** for structural classification
+  
+  **For specialized searches:**
+  - Use domain-specific databases (COG, dbCAN, etc.) from MPI Toolkit
+
+</Accordion>
+
+## Database Formats
+
+HH-suite databases consist of several files:
+
+```
+database_a3m.ffdata       # A3M alignments (FFindex format)
+database_a3m.ffindex      # A3M alignment index
+database_hhm.ffdata       # HMM profiles (FFindex format)
+database_hhm.ffindex      # HMM profile index
+database_cs219.ffdata     # Context-specific profiles (optional)
+database_cs219.ffindex    # CS219 index (optional)
+```
+
+<Note>
+All files with the same prefix must be present in the same directory for the database to work properly.
+</Note>
+
+## Performance Considerations
+
+### Database Size vs. Speed
+
+| Database | Sequences | Disk Space | Search Time | Sensitivity |
+|----------|-----------|------------|-------------|-------------|
+| Uniclust30 | ~100M | ~100 GB | Fast | Good |
+| BFD | ~2.5B | >1 TB | Slow | Excellent |
+| PDB70 | ~50K | &lt;5 GB | Very Fast | Structure-specific |
+| Pfam | ~20K | &lt;2 GB | Very Fast | Family-specific |
+
+### Memory Requirements
+
+<Warning>
+**BFD searches require significant RAM:**
+- Minimum: 64 GB
+- Recommended: 128+ GB for efficient searching
+- Consider using `-cpu` to limit parallelization if memory-constrained
+</Warning>
+
+## Building Custom Databases
+
+You can create custom databases from your own sequences. See the [Building Custom Databases](/guides/building-custom-databases) guide for detailed instructions.
+
+```bash
+# Quick example
+hhsuitedb.py -ia3m my_alignments/ -o my_database
+```
+
+## Database Updates
+
+Databases are typically updated on the following schedules:
+
+- **Uniclust30**: Every 2-3 months
+- **BFD**: Annually
+- **PDB70**: Weekly (follows PDB releases)
+- **Pfam**: Every 6-12 months
+
+<Tip>
+Check the [HH-suite database repository](http://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/) regularly for new releases.
+</Tip>
+
+## Troubleshooting
+
+### Database Not Found
+
+```bash
+Error: Database files not found
+```
+
+**Solution**: Ensure all database files (`.ffdata`, `.ffindex`) are in the specified directory and use the correct basename without extensions.
+
+### Out of Memory
+
+```bash
+Error: Cannot allocate memory
+```
+
+**Solution**: 
+- Reduce number of CPUs with `-cpu` option
+- Use a smaller database (Uniclust30 instead of BFD)
+- Increase system swap space
+
+### Corrupted Database
+
+```bash
+Error: Could not read database entry
+```
+
+**Solution**: Re-download and extract the database. Verify checksums if provided.
+
+## See Also
+
+- [Building Custom Databases](/guides/building-custom-databases)
+- [Performance Optimization](/guides/performance)
+- [File Formats](/guides/file-formats)
+- [HHblits Guide](/tools/hhblits)

@@ -1,0 +1,335 @@
+---
+title: 'Compilation from Source'
+description: 'Detailed guide for compiling HH-suite with CMake, including SIMD optimization and MPI support'
+icon: 'hammer'
+---
+
+## Overview
+
+HH-suite uses CMake as its build system and supports various architectures and SIMD instruction sets. This guide covers advanced compilation options for optimal performance.
+
+## Requirements
+
+### Compiler Requirements
+
+<CardGroup cols={2}>
+  <Card title="GCC" icon="gear">
+    Version 4.8 or later required
+  </Card>
+  <Card title="Clang" icon="c">
+    Version 3.6 or later supported
+  </Card>
+  <Card title="Intel ICC" icon="microchip">
+    Fully supported with optimizations
+  </Card>
+  <Card title="CMake" icon="wrench">
+    Version 2.8.12 or later required
+  </Card>
+</CardGroup>
+
+### System Requirements
+
+- 64-bit system (x86_64, ARM64, or PPC64LE)
+- At least SSE2 instruction set support (x86/x64)
+- OpenMP support (recommended for multi-threading)
+- MPI library (optional, for distributed computing)
+
+## Basic Compilation
+
+The simplest way to compile HH-suite:
+
+```bash
+git clone https://github.com/soedinglab/hh-suite.git
+mkdir -p hh-suite/build && cd hh-suite/build
+cmake -DCMAKE_INSTALL_PREFIX=. ..
+make -j 4 && make install
+export PATH="$(pwd)/bin:$(pwd)/scripts:$PATH"
+```
+
+## CMake Build Options
+
+### SIMD Instruction Sets
+
+HH-suite supports various SIMD instruction sets for performance optimization:
+
+<Tabs>
+  <Tab title="x86/x64">
+    ```bash CMake Options
+    # Auto-detect (recommended)
+    cmake -DNATIVE_ARCH=1 ..
+    
+    # Specific SIMD levels
+    cmake -DHAVE_SSE2=1 ..
+    cmake -DHAVE_SSE4_1=1 ..
+    cmake -DHAVE_AVX2=1 ..
+    ```
+    
+    <Note>
+    AVX2 is approximately 2x faster than SSE2. Use `-DHAVE_AVX2=1` if your CPU supports it.
+    </Note>
+  </Tab>
+  
+  <Tab title="ARM">
+    ```bash ARMv8
+    cmake -DHAVE_ARM8=1 ..
+    ```
+    
+    For native optimization:
+    ```bash
+    cmake -DNATIVE_ARCH=1 -DARCH_FLAGS="-mcpu=native" ..
+    ```
+  </Tab>
+  
+  <Tab title="POWER">
+    ```bash POWER8
+    cmake -DHAVE_POWER8=1 ..
+    ```
+    
+    ```bash POWER9
+    cmake -DHAVE_POWER9=1 ..
+    ```
+  </Tab>
+</Tabs>
+
+### Core Build Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `CHECK_MPI` | 1 | Enable MPI availability check |
+| `NATIVE_ARCH` | 1 | Use native architecture for SIMD |
+| `EXE_SUFFIX` | "" | Optional executable suffix for SIMD builds |
+| `ENABLE_SANITIZERS` | 0 | Enable memory/thread sanitizers (debug) |
+| `CMAKE_BUILD_TYPE` | Release | Build type (Release/Debug) |
+
+### Example: Custom SIMD Build
+
+Build for a specific architecture without native detection:
+
+```bash
+mkdir build-avx2 && cd build-avx2
+cmake -DNATIVE_ARCH=0 \
+      -DHAVE_AVX2=1 \
+      -DEXE_SUFFIX="_avx2" \
+      -DCMAKE_INSTALL_PREFIX=. \
+      ..
+make -j 8 && make install
+```
+
+This creates executables like `hhblits_avx2`, `hhsearch_avx2`, etc.
+
+## OpenMP Support
+
+OpenMP is automatically detected and enabled if available. It provides:
+
+- Multi-threaded profile alignment
+- Parallel database searches
+- Additional `*_omp` executables (e.g., `hhblits_omp`)
+
+<CodeGroup>
+```bash Verify OpenMP
+cat /proc/cpuinfo | grep -i "cpu cores"
+export OMP_NUM_THREADS=8
+```
+
+```bash Disable OpenMP
+cmake -DOpenMP_C_FLAGS="" -DOpenMP_CXX_FLAGS="" ..
+```
+</CodeGroup>
+
+## MPI Compilation
+
+<Warning>
+Only self-compiled versions include MPI support. Pre-built binaries do not have MPI.
+</Warning>
+
+### Prerequisites
+
+Install an MPI implementation:
+
+<Tabs>
+  <Tab title="Ubuntu/Debian">
+    ```bash
+    sudo apt-get install libopenmpi-dev openmpi-bin
+    ```
+  </Tab>
+  
+  <Tab title="RHEL/CentOS">
+    ```bash
+    sudo yum install openmpi openmpi-devel
+    module load mpi/openmpi-x86_64
+    ```
+  </Tab>
+  
+  <Tab title="macOS">
+    ```bash
+    brew install open-mpi
+    ```
+  </Tab>
+</Tabs>
+
+### Build with MPI
+
+```bash
+mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX=. \
+      -DCHECK_MPI=1 \
+      ..
+make -j 4 && make install
+```
+
+If MPI is found, this creates:
+- `hhblits_mpi`
+- `hhsearch_mpi`
+- `hhalign_mpi`
+- `cstranslate_mpi`
+
+### Running MPI Programs
+
+```bash Example: Distributed Search
+mpirun -np 16 hhblits_mpi \
+  -i query.a3m \
+  -d /path/to/database \
+  -o results.hhr \
+  -n 3
+```
+
+## Platform-Specific Notes
+
+### macOS Compilation
+
+<Warning>
+macOS default `clang` doesn't support OpenMP. Install GCC via Homebrew.
+</Warning>
+
+```bash
+# Install GCC with OpenMP support
+brew install gcc
+
+# Compile with GCC
+CC="$(brew --prefix)/bin/gcc-13" \
+CXX="$(brew --prefix)/bin/g++-13" \
+cmake -DCMAKE_INSTALL_PREFIX=. ..
+
+make -j 4 && make install
+```
+
+### Static Builds
+
+For portable binaries:
+
+```bash
+cmake -DCMAKE_EXE_LINKER_FLAGS="-static" \
+      -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+      -DCMAKE_INSTALL_PREFIX=. \
+      ..
+```
+
+## Advanced Compiler Flags
+
+### Intel Compiler Optimizations
+
+```bash
+cmake -DCMAKE_C_COMPILER=icc \
+      -DCMAKE_CXX_COMPILER=icpc \
+      -DCMAKE_CXX_FLAGS="-fp-model precise -xHost" \
+      ..
+```
+
+The `-fp-model precise` flag is automatically set for ICC to ensure consistent results.
+
+### Custom SIMD Flags
+
+If auto-detection fails:
+
+```bash
+cmake -DNATIVE_ARCH=0 \
+      -DCMAKE_CXX_FLAGS="-march=skylake -mtune=skylake" \
+      ..
+```
+
+## Viterbi Algorithm Variants
+
+HH-suite compiles multiple Viterbi algorithm variants for different scoring modes:
+
+```cmake CMakeLists.txt (src/)
+add_library(hhviterbialgorithm_with_celloff hhviterbialgorithm.cpp)
+set_property(TARGET hhviterbialgorithm_with_celloff 
+             PROPERTY COMPILE_FLAGS "-DVITERBI_CELLOFF=1")
+
+add_library(hhviterbialgorithm_with_celloff_and_ss hhviterbialgorithm.cpp)
+set_property(TARGET hhviterbialgorithm_with_celloff_and_ss 
+             PROPERTY COMPILE_FLAGS "-DVITERBI_CELLOFF=1 -DVITERBI_SS_SCORE=1")
+```
+
+These variants optimize:
+- **CELLOFF**: Exclude regions from alignment
+- **SS_SCORE**: Include secondary structure scoring
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Error: 'Insufficient gcc version'">
+    Update GCC to version 4.8 or later:
+    ```bash
+    gcc --version
+    sudo apt-get install gcc-9 g++-9
+    ```
+  </Accordion>
+  
+  <Accordion title="Error: 'At least SSE2 is needed to compile'">
+    Your CPU is too old. Check SIMD support:
+    ```bash
+    cat /proc/cpuinfo | grep -i sse2
+    ```
+  </Accordion>
+  
+  <Accordion title="MPI not detected">
+    Ensure MPI is in your PATH:
+    ```bash
+    which mpicc
+    export PATH=/path/to/mpi/bin:$PATH
+    cmake -DCHECK_MPI=1 ..
+    ```
+  </Accordion>
+  
+  <Accordion title="Performance is slow">
+    Verify SIMD flags are applied:
+    ```bash
+    # Check compilation flags
+    make VERBOSE=1 | grep march
+    
+    # Verify AVX2 in binary
+    objdump -d bin/hhblits | grep vpmul
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Verification
+
+After compilation, verify the build:
+
+```bash
+# Check version
+./bin/hhblits -h | head -n 3
+
+# Test basic functionality
+./bin/hhblits -i test.fas -d database -o test.hhr -n 1
+
+# Check OpenMP support
+export OMP_NUM_THREADS=4
+./bin/hhblits_omp -h
+
+# Check MPI support (if compiled)
+mpirun -np 2 ./bin/hhblits_mpi -h
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Parameters" icon="sliders" href="/advanced/parameters">
+    Learn about command-line parameters
+  </Card>
+  <Card title="Algorithms" icon="brain" href="/advanced/algorithms">
+    Understand the underlying algorithms
+  </Card>
+</CardGroup>

@@ -1,0 +1,370 @@
+---
+title: HHconsensus  
+description: Generate consensus sequences from multiple sequence alignments
+---
+
+HHconsensus calculates the consensus sequence for a multiple sequence alignment. It's useful for generating representative sequences from MSAs, creating database entries, or analyzing alignment conservation patterns.
+
+## Overview
+
+HHconsensus reads an alignment in A2M, A3M, or FASTA format and generates a consensus sequence based on the most frequent amino acid at each position, weighted by sequence similarity. It can output the consensus alone or as part of the full alignment.
+
+### Key Features
+
+- **Consensus generation**: Creates representative sequence from MSA
+- **Multiple output formats**: FASTA, A2M, A3M formats
+- **Filtering support**: Apply filters before consensus calculation
+- **Flexible output**: Consensus only or full alignment with consensus
+
+## When to Use HHconsensus
+
+Use HHconsensus when you need to:
+
+- **Create representative sequences**: Generate consensus for database entries
+- **Analyze conservation**: Identify conserved positions in alignments
+- **Reduce MSA to single sequence**: Simplify analysis or visualization
+- **Build consensus databases**: Create searchable consensus sequence sets
+- **Quality control**: Check alignment quality via consensus inspection
+
+<Note>
+The consensus sequence is automatically calculated during HMM building in [hhmake](/tools/hhmake), but HHconsensus gives you direct access to it.
+</Note>
+
+## Basic Usage
+
+<Steps>
+  <Step title="Generate consensus sequence">
+    Extract consensus in FASTA format:
+    
+    ```bash
+    hhconsensus -i alignment.a3m -s consensus.seq
+    ```
+  </Step>
+
+  <Step title="Output alignment with consensus">
+    Include consensus in the output alignment:
+    
+    ```bash
+    hhconsensus -i alignment.a3m -o output.a3m
+    ```
+  </Step>
+
+  <Step title="Pipeline usage">
+    Use stdin/stdout for pipeline integration:
+    
+    ```bash
+    hhconsensus -i stdin -s stdout < alignment.a3m > consensus.seq
+    ```
+  </Step>
+</Steps>
+
+## Common Use Cases
+
+### Extract Consensus Sequence
+
+Generate just the consensus sequence:
+
+```bash
+hhconsensus -i alignment.a3m -s consensus.fas
+```
+
+Output format:
+```text
+>alignment consensus
+MSTVKGYRILLAGAIDSFSLTESDKPTYRLVGPSGCSGKTTLLNAIAGESPTSGKVTLSGG
+```
+
+### Generate Consensus with Filtering
+
+Filter alignment before calculating consensus:
+
+```bash
+hhconsensus -i alignment.a3m -s consensus.fas \
+  -id 90 \   # Remove sequences >90% identical  
+  -cov 50    # Require 50% coverage
+```
+
+### Create Consensus Database
+
+Build a database of consensus sequences:
+
+```bash
+#!/bin/bash
+for ali in alignments/*.a3m; do
+  base=$(basename "$ali" .a3m)
+  hhconsensus -i "$ali" -s "consensus/${base}_consensus.fas"
+done
+
+# Concatenate all consensus sequences
+cat consensus/*.fas > all_consensus.fas
+```
+
+### Output Alignment in Different Formats
+
+Generate alignment with consensus in various formats:
+
+```bash
+# A3M format (with inserts as lowercase)
+hhconsensus -i alignment.a3m -oa3m output.a3m
+
+# A2M format (with inserts as lowercase)
+hhconsensus -i alignment.a3m -oa2m output.a2m
+
+# FASTA format (inserts removed)
+hhconsensus -i alignment.a3m -ofas output.fas
+```
+
+### Batch Processing
+
+Process multiple alignments:
+
+```bash
+for file in *.a3m; do
+  hhconsensus -i "$file" -s "${file%.a3m}_consensus.seq"
+done
+```
+
+## Key Parameters
+
+<AccordionGroup>
+  <Accordion title="Input/Output Options">
+    - `-i <file>` - Input alignment (A2M, A3M, FASTA) or HMM
+    - `-s <file>` - Output consensus sequence in FASTA (default: `<infile>.seq`)
+    - `-o <file>` - Output alignment with consensus in A3M format
+    - `-oa3m <file>` - Same as `-o` (explicit A3M format)
+    - `-oa2m <file>` - Output alignment with consensus in A2M format
+    - `-ofas <file>` - Output alignment with consensus in FASTA format
+    - `-v <int>` - Verbose mode (0=silent, 1=warnings, 2=verbose)
+  </Accordion>
+
+  <Accordion title="Filtering Options">
+    - `-id [0,100]` - Maximum pairwise sequence identity % (default: 100)
+    - `-diff [0,inf]` - Filter for diversity, keeping at least this many sequences per 50-column block (default: 0)
+    - `-cov [0,100]` - Minimum coverage with query % (default: 0)
+    - `-qid [0,100]` - Minimum sequence identity with query % (default: 0)
+    - `-qsc [-inf,100]` - Minimum score per column with query (default: -20.0)
+  </Accordion>
+
+  <Accordion title="Input Format">
+    - `-M a2m` - A2M/A3M format (default): upper=match, lower=insert
+    - `-M first` - FASTA: first sequence defines match states  
+    - `-M [0,100]` - FASTA: columns with &lt;X% gaps are match states
+  </Accordion>
+
+  <Accordion title="Advanced Options">
+    - `-maxseq <int>` - Maximum number of input sequences (default: 65535)
+    - `-maxres <int>` - Maximum number of HMM columns (default: 20000)
+  </Accordion>
+</AccordionGroup>
+
+## How Consensus is Calculated
+
+The consensus sequence is determined by:
+
+1. **Sequence weighting**: Similar sequences are down-weighted
+2. **Position-specific frequencies**: Count amino acids at each position
+3. **Most frequent residue**: Select the most common amino acid
+4. **Tie breaking**: Use a fixed priority order if frequencies are equal
+
+<CodeGroup>
+```text Example Alignment
+Position:     1234567890
+Sequence 1:   MSTIKGYRIL
+Sequence 2:   MSTIKGYRIL  (identical, down-weighted)
+Sequence 3:   MATIVGYRVL
+Sequence 4:   MSAIKGFRIL
+Sequence 5:   LAATVKGYKIL (different, higher weight)
+```
+
+```text Consensus Calculation
+Position 1: M=4, L=1  → M (most frequent)
+Position 2: S=3, A=1  → S
+Position 3: T=4, A=1  → T
+Position 4: I=3, A=2  → I
+Position 5: K=4, V=1  → K
+...
+Consensus: MSTIKGYRIL
+```
+</CodeGroup>
+
+## Output Formats
+
+<CodeGroup>
+```text FASTA Output (-s)
+>alignment_name consensus
+MSTVKGYRILLAGAIDSFSLTESDKPTYRLVGPSGCSGKTTLLNAIAGESPTSGKVTLSGG
+```
+
+```text A3M Output (-oa3m)
+>consensus_sequence
+MSTVKGYRILLAGAIDSFSLTESDKPTYRLVGPSGCSGKTTLLNAIAGESPTSGKVTLSGG
+>original_seq_1
+MSTVKGYRILLAGAIDSFSLTESDKPTYRLVGPSGCSGKTTLLNAIAGESPTSGKVTLSGG  
+>original_seq_2
+mstvkgyRILLAGAIDSFSltesdkptyRLVGPSGCSGKTTLLnaiagesptSGKVTLSGG
+```
+
+```text A2M Output (-oa2m)
+>consensus_sequence
+MSTVKGYRILLAGAIDSFSLTESDKPTYRLVGPSGCSGKTTLLNAIAGESPTSGKVTLSGG
+>original_seq_1
+MSTVKGYRILLAGAIDSFSLTESDKPTYRLVGPSGCSGKTTLLNAIAGESPTSGKVTLSGG
+>original_seq_2
+mstvkgyRILLAGAIDSFSltesdkptyRLVGPSGCSGKTTLLnaiagesptSGKVTLSGG
+```
+</CodeGroup>
+
+## Tips and Best Practices
+
+<Tip>
+**Filter before consensus**: For better consensus quality, filter the alignment first:
+
+```bash
+hhconsensus -i alignment.a3m -s consensus.fas -id 90 -cov 50
+```
+This removes redundant and low-quality sequences.
+</Tip>
+
+<Warning>
+The consensus is only as good as the input alignment. Poor alignments or highly divergent sequences will produce poor consensus sequences.
+</Warning>
+
+<Tip>
+**Check consensus quality**: View the consensus alongside the alignment to verify it represents conserved positions:
+
+```bash
+hhconsensus -i alignment.a3m -ofas alignment_with_cons.fas
+# View in alignment viewer
+```
+</Tip>
+
+## Advanced Use Cases
+
+### Named Consensus Sequences
+
+Specify a custom name for the consensus:
+
+```bash
+hhconsensus -i alignment.a3m -s consensus.fas -name "MyProtein_consensus"
+```
+
+### Consensus with Strict Quality Control
+
+Generate consensus from only high-quality sequences:
+
+```bash
+hhconsensus -i alignment.a3m -s high_quality_consensus.fas \
+  -id 70 \      # Remove highly similar sequences
+  -cov 80 \     # Require 80% coverage
+  -qid 30 \     # At least 30% identity with master
+  -qsc 5.0      # Minimum score per column
+```
+
+### Build NR-style Consensus Database
+
+Create a non-redundant database from alignments:
+
+```bash
+#!/bin/bash
+# Extract consensus from each alignment
+for ali in protein_families/*.a3m; do
+  family=$(basename "$ali" .a3m)
+  hhconsensus -i "$ali" -s temp.fas -name "${family}_consensus" -id 90
+  cat temp.fas >> nr_consensus.fas
+done
+rm temp.fas
+
+# The result is a FASTA database of consensus sequences
+```
+
+### Integration with Structure Prediction
+
+Generate consensus for AlphaFold input:
+
+```bash
+# Build MSA with HHblits
+hhblits -i query.fas -d uniclust30 -oa3m msa.a3m
+
+# Extract consensus
+hhconsensus -i msa.a3m -s consensus.fas
+
+# Use consensus for validation or as alternative input
+```
+
+## Comparison with Master Sequence
+
+The **consensus** differs from the **master sequence**:
+
+| Aspect | Master Sequence | Consensus Sequence |
+|--------|----------------|--------------------|
+| **Definition** | First sequence in alignment | Most frequent residue per position |
+| **Coverage** | May have gaps | Always complete (no gaps) |
+| **Represents** | One real sequence | Average of all sequences |
+| **Use case** | Reference sequence | Representative sequence |
+
+## Pipeline Integration
+
+### Workflow Example
+
+```bash
+#!/bin/bash
+# Complete pipeline: search → filter → consensus
+
+# 1. Build MSA
+hhblits -i query.fas -d uniclust30 -oa3m raw_msa.a3m -n 3
+
+# 2. Filter MSA  
+hhfilter -i raw_msa.a3m -o filtered_msa.a3m -id 90 -cov 50
+
+# 3. Generate consensus
+hhconsensus -i filtered_msa.a3m -s consensus.fas
+
+# 4. Generate HMM
+hhmake -i filtered_msa.a3m -o profile.hhm -add_cons
+```
+
+### Batch Consensus Generation
+
+```bash
+# Process all MSAs in parallel
+find alignments/ -name "*.a3m" | \
+  parallel -j 8 \
+  'hhconsensus -i {} -s {.}_consensus.fas -id 90 -cov 50'
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Consensus has gaps">
+    If the consensus sequence has gaps (dashes):
+    - This shouldn't happen - consensus always has a residue at each match state
+    - Check if input alignment is properly formatted
+    - Ensure you're using A3M/A2M format correctly
+  </Accordion>
+
+  <Accordion title="Consensus doesn't match expectations">
+    If the consensus seems wrong:
+    - View alignment to check sequence quality
+    - Apply filters to remove outliers
+    - Check if similar sequences are dominating (use `-id` filter)
+    - Remember: consensus is frequency-based, not conservation-based
+  </Accordion>
+
+  <Accordion title="Empty output file">
+    If no consensus is generated:
+    - Check input file format
+    - Verify alignment has at least one sequence
+    - Look for error messages with `-v 2`
+    - Ensure output path is writable
+  </Accordion>
+</AccordionGroup>
+
+## Related Tools
+
+- [**hhmake**](/tools/hhmake) - Build HMMs (includes consensus in HMM file)
+- [**hhfilter**](/tools/hhfilter) - Filter alignments before consensus
+- [**hhblits**](/tools/hhblits) - Build MSAs for consensus generation
+
+## References
+
+Steinegger M, Meier M, Mirdita M, Vöhringer H, Haunsberger SJ, Söding J (2019). HH-suite3 for fast remote homology detection and deep protein annotation. *BMC Bioinformatics*, 473. [doi: 10.1186/s12859-019-3019-7](https://doi.org/10.1186/s12859-019-3019-7)

@@ -1,0 +1,572 @@
+---
+title: 'Parallel Computing'
+description: 'Use OpenMP and MPI for parallel searches across multiple cores and compute nodes'
+---
+
+## Overview
+
+HH-suite supports parallel computing through two mechanisms: **OpenMP** for shared-memory parallelization (single node, multiple cores) and **MPI** for distributed computing (multiple nodes). This guide covers both approaches for maximum performance.
+
+## OpenMP Parallelization
+
+### What is OpenMP?
+
+OpenMP enables multi-core parallelization on a single machine using shared memory. It's the simplest way to speed up HH-suite searches.
+
+**Key Features:**
+- Automatically enabled in pre-compiled binaries
+- Works on single workstations or compute nodes
+- Scales to ~64 cores efficiently
+- No special runtime configuration needed
+
+### Check OpenMP Support
+
+```bash
+# Check if binary has OpenMP support
+ldd $(which hhblits) | grep -i gomp
+# If found, OpenMP is supported
+
+# Check during compilation
+cmake -DCMAKE_INSTALL_PREFIX=. ..
+# Look for: "-- Found OpenMP"
+```
+
+### Using OpenMP
+
+Source: `src/CMakeLists.txt:90-96`
+
+<CodeGroup>
+```bash Basic Usage
+hhblits -i query.fasta -d database -cpu 8
+```
+
+```bash Environment Variable
+export OMP_NUM_THREADS=16
+hhblits -i query.fasta -d database
+# Uses 16 threads
+```
+
+```bash Auto-detect Cores
+hhblits -i query.fasta -d database -cpu $(nproc)
+```
+
+```bash Memory-Constrained
+hhblits -i query.fasta -d bfd -cpu 4
+# Limit threads to reduce memory usage
+```
+</CodeGroup>
+
+### OpenMP Best Practices
+
+<Steps>
+  <Step title="Determine Core Count">
+    Use physical cores, not hyperthreads:
+    ```bash
+    # Linux: Physical cores
+    lscpu | grep "^Core(s) per socket"
+    
+    # macOS: Physical cores
+    sysctl -n hw.physicalcpu
+    ```
+  </Step>
+  
+  <Step title="Set Thread Count">
+    Use `-cpu` flag or `OMP_NUM_THREADS` environment variable:
+    ```bash
+    export OMP_NUM_THREADS=8
+    ```
+  </Step>
+  
+  <Step title="Monitor Performance">
+    Check CPU utilization during searches:
+    ```bash
+    htop  # Or top
+    ```
+    All cores should show ~100% usage.
+  </Step>
+  
+  <Step title="Adjust for Memory">
+    If you run out of memory, reduce thread count:
+    ```bash
+    hhblits -i query.fasta -d bfd -cpu 4  # Instead of 16
+    ```
+  </Step>
+</Steps>
+
+### Thread Scaling Performance
+
+Typical speedup on a 16-core workstation:
+
+| Threads | Speedup | Efficiency | Use Case |
+|---------|---------|------------|----------|
+| 1 | 1.0x | 100% | Baseline |
+| 2 | 1.9x | 95% | Testing |
+| 4 | 3.7x | 93% | Memory-limited |
+| 8 | 7.1x | 89% | **Recommended** |
+| 16 | 13.2x | 83% | Maximum throughput |
+| 32 (HT) | 15.8x | 49% | Diminishing returns |
+
+<Note>
+Efficiency drops with hyperthreading due to resource contention. Use physical cores for optimal performance.
+</Note>
+
+## MPI Parallelization
+
+### What is MPI?
+
+MPI (Message Passing Interface) enables distributed computing across multiple compute nodes. It's designed for HPC clusters and large-scale processing.
+
+**Key Features:**
+- Scales to hundreds of cores across many nodes
+- Requires MPI library installation
+- Only available when compiling from source
+- Ideal for processing many queries or large databases
+
+### Compile with MPI Support
+
+Source: `src/CMakeLists.txt:269-296`
+
+<Steps>
+  <Step title="Install MPI Library">
+    <CodeGroup>
+    ```bash Debian/Ubuntu
+    sudo apt-get install libopenmpi-dev openmpi-bin
+    ```
+    
+    ```bash RedHat/CentOS
+    sudo yum install openmpi-devel
+    module load mpi/openmpi-x86_64
+    ```
+    
+    ```bash macOS
+    brew install open-mpi
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Compile HH-suite">
+    ```bash
+    git clone https://github.com/soedinglab/hh-suite.git
+    mkdir -p hh-suite/build && cd hh-suite/build
+    
+    cmake -DCMAKE_INSTALL_PREFIX=. -DCHECK_MPI=1 ..
+    make -j $(nproc) && make install
+    
+    export PATH="$(pwd)/bin:$(pwd)/scripts:$PATH"
+    ```
+    
+    Check for MPI binaries:
+    ```bash
+    ls bin/*_mpi
+    # Should show: hhblits_mpi, hhsearch_mpi, hhalign_mpi, cstranslate_mpi
+    ```
+  </Step>
+  
+  <Step title="Verify MPI Installation">
+    ```bash
+    mpirun --version
+    which mpirun
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+**MPI versions are NOT included in pre-compiled binaries** because MPI configuration is system-specific. You must compile from source to use MPI.
+</Warning>
+
+### MPI Tools Available
+
+- **hhblits_mpi** - Parallel iterative search
+- **hhsearch_mpi** - Parallel database search
+- **hhalign_mpi** - Parallel pairwise alignment
+- **cstranslate_mpi** - Parallel context-specific translation
+
+## Running MPI Jobs
+
+### Single Node, Multiple Processes
+
+```bash
+# Use 8 MPI processes on one node
+mpirun -np 8 hhblits_mpi -i queries.fasta -d database -o results.hhr
+```
+
+### Multiple Nodes
+
+<CodeGroup>
+```bash Hostfile Method
+# Create hostfile
+cat > hosts.txt << EOF
+node01 slots=16
+node02 slots=16
+node03 slots=16
+node04 slots=16
+EOF
+
+# Run across nodes
+mpirun -np 64 --hostfile hosts.txt \
+  hhblits_mpi -i queries.fasta -d database -o results.hhr
+```
+
+```bash Direct Specification
+mpirun -np 32 \
+  -H node01:16,node02:16 \
+  hhblits_mpi -i queries.fasta -d database -o results.hhr
+```
+</CodeGroup>
+
+### SLURM Integration
+
+<CodeGroup>
+```bash SLURM Batch Script
+#!/bin/bash
+#SBATCH --job-name=hhblits_mpi
+#SBATCH --nodes=4
+#SBATCH --ntasks-per-node=16
+#SBATCH --time=24:00:00
+#SBATCH --mem=64G
+
+module load openmpi
+
+mpirun hhblits_mpi \
+  -i queries.fasta \
+  -d /path/to/database \
+  -o results.hhr \
+  -oa3m results.a3m
+```
+
+```bash Array Job for Multiple Queries
+#!/bin/bash
+#SBATCH --job-name=hhblits_array
+#SBATCH --array=1-100
+#SBATCH --nodes=1
+#SBATCH --ntasks=16
+#SBATCH --time=4:00:00
+
+query=$(sed -n "${SLURM_ARRAY_TASK_ID}p" queries.list)
+
+mpirun -np 16 hhblits_mpi \
+  -i $query \
+  -d /path/to/database \
+  -o ${query%.fasta}.hhr
+```
+</CodeGroup>
+
+### PBS/Torque Integration
+
+```bash
+#!/bin/bash
+#PBS -N hhblits_mpi
+#PBS -l nodes=4:ppn=16
+#PBS -l walltime=24:00:00
+
+cd $PBS_O_WORKDIR
+
+mpirun -np 64 hhblits_mpi \
+  -i queries.fasta \
+  -d database \
+  -o results.hhr
+```
+
+## Hybrid OpenMP + MPI
+
+Combine MPI (inter-node) with OpenMP (intra-node) for maximum efficiency:
+
+<CodeGroup>
+```bash SLURM Hybrid
+#!/bin/bash
+#SBATCH --nodes=4
+#SBATCH --ntasks-per-node=2      # 2 MPI ranks per node
+#SBATCH --cpus-per-task=8         # 8 OpenMP threads per rank
+#SBATCH --time=24:00:00
+
+export OMP_NUM_THREADS=8
+
+mpirun hhblits_mpi -i queries.fasta -d database -cpu 8
+```
+
+```bash Manual Launch
+export OMP_NUM_THREADS=8
+
+mpirun -np 8 --map-by ppr:2:node:pe=8 \
+  hhblits_mpi -i queries.fasta -d database -cpu 8
+```
+</CodeGroup>
+
+**Explanation:**
+- 4 nodes × 2 MPI ranks = 8 total MPI processes
+- Each MPI rank uses 8 OpenMP threads
+- Total: 64 cores (8 × 8)
+
+<Tip>
+**Hybrid parallelism is most efficient** for large clusters. Use 2-4 MPI ranks per node with OpenMP filling the remaining cores.
+</Tip>
+
+## Batch Processing Strategies
+
+### GNU Parallel
+
+For workstations without MPI:
+
+```bash
+# Process 8 queries in parallel
+cat queries.list | parallel -j 8 \
+  "hhblits -i {}.fasta -d database -o {}.hhr -cpu 2"
+```
+
+### Job Arrays
+
+For HPC systems:
+
+```bash
+#!/bin/bash
+#SBATCH --array=1-1000
+#SBATCH --cpus-per-task=8
+
+query=$(sed -n "${SLURM_ARRAY_TASK_ID}p" queries.list)
+
+hhblits -i $query -d database -cpu 8 -o results/${SLURM_ARRAY_TASK_ID}.hhr
+```
+
+### Split-Apply-Combine
+
+<Steps>
+  <Step title="Split Queries">
+    ```bash
+    split -l 100 all_queries.fasta query_batch_
+    # Creates: query_batch_aa, query_batch_ab, ...
+    ```
+  </Step>
+  
+  <Step title="Process Batches in Parallel">
+    ```bash
+    for batch in query_batch_*; do
+      mpirun -np 16 hhblits_mpi -i $batch -d database -o ${batch}.hhr &
+    done
+    wait
+    ```
+  </Step>
+  
+  <Step title="Combine Results">
+    ```bash
+    cat query_batch_*.hhr > all_results.hhr
+    ```
+  </Step>
+</Steps>
+
+## Performance Optimization
+
+### Choosing the Right Parallelization
+
+<CardGroup cols={2}>
+  <Card title="Use OpenMP When" icon="microchip">
+    - Single workstation/node
+    - ≤64 cores
+    - Shared memory available
+    - Simple setup needed
+  </Card>
+  
+  <Card title="Use MPI When" icon="server">
+    - Multiple compute nodes
+    - >64 cores
+    - HPC cluster available
+    - Maximum scalability needed
+  </Card>
+</CardGroup>
+
+### Load Balancing
+
+MPI automatically distributes work across processes:
+
+- **Query-level parallelism**: Each query processed by one MPI rank
+- **Database-level parallelism**: Database split across MPI ranks
+- **Dynamic load balancing**: Idle processes pick up new work
+
+<Note>
+Load balancing works best when:
+- Number of queries >> number of processes
+- Query sizes are similar
+- Database is evenly distributed
+</Note>
+
+### Memory Considerations
+
+**Per-process memory:**
+
+| Parallelization | Database | Memory per Process | 16 Processes |
+|----------------|----------|-------------------|---------------|
+| OpenMP | Uniclust30 | Shared: ~10 GB | ~12 GB total |
+| MPI | Uniclust30 | Independent: ~10 GB | ~160 GB total |
+| OpenMP | BFD | Shared: ~35 GB | ~50 GB total |
+| MPI | BFD | Independent: ~35 GB | ~560 GB total |
+
+<Warning>
+**MPI uses more memory** because each process loads its own copy of the database. OpenMP shares memory across threads.
+</Warning>
+
+## Troubleshooting
+
+### MPI Not Found
+
+```
+CMake Error: Could not find MPI
+```
+
+**Solution:**
+```bash
+# Ensure MPI is in PATH
+which mpirun
+export PATH="/usr/lib64/openmpi/bin:$PATH"
+
+# Or specify MPI explicitly
+cmake -DCMAKE_INSTALL_PREFIX=. -DMPI_HOME=/usr/lib64/openmpi ..
+```
+
+### MPI Binaries Not Created
+
+```
+ls bin/*_mpi
+# No such file
+```
+
+**Solution:**
+- Ensure `-DCHECK_MPI=1` was set during cmake
+- Check cmake output for "Found MPI"
+- Verify MPI development files are installed
+
+### Network Issues
+
+```
+Error: Unable to connect to remote nodes
+```
+
+**Solution:**
+- Check SSH keys are configured
+- Verify firewall allows MPI communication
+- Test: `mpirun -np 2 -H node1,node2 hostname`
+
+### Slow Performance
+
+```
+MPI job slower than expected
+```
+
+**Solutions:**
+- Check network bandwidth (use InfiniBand if available)
+- Ensure database is on shared filesystem (not copied per node)
+- Verify no swap usage: `free -h`
+- Use hybrid OpenMP+MPI for better core utilization
+
+## Benchmarking
+
+### Test Scaling
+
+```bash
+#!/bin/bash
+
+for np in 1 2 4 8 16 32; do
+  echo "Testing with $np processes..."
+  time mpirun -np $np hhblits_mpi -i test.fasta -d database
+done
+```
+
+### Measure Efficiency
+
+```bash
+# Strong scaling: Fixed problem size, varying cores
+# Ideal: Time(n cores) = Time(1 core) / n
+
+for cores in 1 2 4 8 16; do
+  /usr/bin/time -f "%e" -o time_${cores}.txt \
+    mpirun -np $cores hhblits_mpi -i query.fasta -d database
+done
+```
+
+### Expected Scalability
+
+| Cores | MPI Speedup | OpenMP Speedup |
+|-------|-------------|----------------|
+| 1 | 1.0x | 1.0x |
+| 2 | 1.95x | 1.9x |
+| 4 | 3.8x | 3.7x |
+| 8 | 7.3x | 7.1x |
+| 16 | 13.8x | 13.2x |
+| 32 | 25.5x | 15.8x (HT) |
+| 64 | 47.2x | N/A |
+| 128 | 85.1x | N/A |
+
+<Tip>
+MPI scales better than OpenMP beyond 16-32 cores due to reduced memory contention and better cache locality.
+</Tip>
+
+## Best Practices
+
+<Accordion title="Parallel Computing Guidelines">
+  
+  ✓ **Start with OpenMP** for simplicity on single nodes
+  
+  ✓ **Use MPI for large-scale** processing on clusters
+  
+  ✓ **Combine MPI + OpenMP** for hybrid parallelism on large systems
+  
+  ✓ **Monitor memory usage** - MPI uses more RAM than OpenMP
+  
+  ✓ **Use physical cores** not hyperthreads for best performance
+  
+  ✓ **Balance load** by having more queries than processes
+  
+  ✓ **Test scaling** before large production runs
+  
+  ✓ **Use fast interconnect** (InfiniBand) for MPI on clusters
+  
+  ✓ **Keep database on shared storage** to avoid duplication
+  
+  ✓ **Process in batches** for very large query sets
+
+</Accordion>
+
+## Example Workflows
+
+### Small Workstation (8 cores)
+
+```bash
+# Use OpenMP
+hhblits -i query.fasta -d uniclust30 -cpu 8
+```
+
+### Large Workstation (64 cores)
+
+```bash
+# Use OpenMP with all cores
+hhblits -i query.fasta -d uniclust30 -cpu 64
+```
+
+### HPC Cluster (128 cores, 8 nodes)
+
+```bash
+#!/bin/bash
+#SBATCH --nodes=8
+#SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=4
+
+export OMP_NUM_THREADS=4
+
+# 8 nodes × 4 MPI ranks × 4 OpenMP threads = 128 cores
+mpirun hhblits_mpi -i queries.fasta -d database -cpu 4
+```
+
+### Many Short Queries
+
+```bash
+# Use job arrays instead of MPI
+#SBATCH --array=1-10000
+#SBATCH --cpus-per-task=4
+
+query=$(sed -n "${SLURM_ARRAY_TASK_ID}p" queries.list)
+hhblits -i $query -d database -cpu 4
+```
+
+## See Also
+
+- [Performance Optimization](/guides/performance) - SIMD and compiler optimizations
+- [Building Custom Databases](/guides/building-custom-databases) - Database preparation for parallel searches
+- [Available Databases](/guides/databases) - Database selection and sizing

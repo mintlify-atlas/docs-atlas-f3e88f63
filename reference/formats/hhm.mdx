@@ -1,0 +1,192 @@
+---
+title: 'HHM Format'
+description: 'Hidden Markov Model format used by HH-suite'
+---
+
+## Overview
+
+HHM is the Hidden Markov Model format used by HH-suite. It contains profile information derived from multiple sequence alignments, including amino acid frequencies, transition probabilities, and optional secondary structure predictions.
+
+## Format Specification
+
+### Header Section
+
+The file begins with metadata:
+
+```
+HHsearch 1.6
+NAME  sp|Q5VUD6|FA69B_HUMAN Protein FAM69B OS=Homo sapiens GN=FAM69B PE=2 SV=3
+FAM   
+FILE  query
+COM   hhmake -i /path/to/query.a3m 
+DATE  Wed Jan  4 15:14:55 2012
+LENG  431 match states, 431 columns in multiple alignment
+FILT  149 out of 270 sequences passed filter (-id 90 -cov 0 -qid 0 -qsc -20.00 -diff 100)
+NEFF  5.2
+```
+
+### Header Fields
+
+- **HHsearch**: Version identifier
+- **NAME**: Protein name and description
+- **FAM**: Family information (optional)
+- **FILE**: Base filename
+- **COM**: Command used to generate the HMM
+- **DATE**: Creation timestamp
+- **LENG**: Number of match states and alignment columns
+- **FILT**: Filter statistics
+- **NEFF**: Effective number of sequences (diversity measure)
+
+### Sequence Section
+
+Consensus and representative sequences:
+
+```
+SEQ
+>Consensus
+xxxxxxxxxxxxxxxxxxxxxxrxxxxxxxxxxxxwxxxxxxsxxxyxxyssxselcrxxxcxxxiCxxYxxGxisGxlCxxLCxxxxlxxxxClxxxxx
+>sp|Q5VUD6|FA69B_HUMAN Protein FAM69B
+MRRLRRLAHLVLFCPFSKRLQGRLPGLRVRCIFLAWLGVFAGSWLVYVHYSSYSERCRGHVCQVVICDQYRKGIISGSVCQDLCELHMVEWRTCLSVAPG
+```
+
+Sequences are shown in blocks, typically including:
+- Consensus sequence (derived from alignment)
+- Representative sequences from the MSA
+
+### NULL Model
+
+Background amino acid frequencies:
+
+```
+NULL   3706	5728	4211	4064	4839	3729	4763	4308	4069	3323	5509	4640	4464	4937	4285	4423	3815	3783	6325	4665
+```
+
+Values for: A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y
+
+### HMM Header Line
+
+```
+HMM    A	C	D	E	F	G	H	I	K	L	M	N	P	Q	R	S	T	V	W	Y
+       M->M	M->I	M->D	I->M	I->I	D->M	D->D	Neff	Neff_I	Neff_D
+```
+
+### Match State Entries
+
+For each match state:
+
+```
+M 1    2443	*	*	*	*	*	3455	*	*	*	1095	*	1962	*	*	*	*	*	*	*	1
+       0	*	*	*	*	*	*	1695	0	0
+```
+
+First line:
+- State type (M for match)
+- Position number
+- Emission probabilities for 20 amino acids (negative log probabilities, * = -infinity)
+- Neff value
+
+Second line:
+- Transition probabilities (M->M, M->I, M->D, I->M, I->I, D->M, D->D)
+- Neff values for insert and delete states
+
+## Emission Probabilities
+
+Emission values are stored as:
+- Negative log-scale probabilities (base unclear, often -log2)
+- `*` represents probability zero (negative infinity in log space)
+- Smaller numbers indicate higher probability
+
+## Transition Probabilities
+
+Transitions between states:
+- **M->M**: Match to match
+- **M->I**: Match to insert  
+- **M->D**: Match to delete
+- **I->M**: Insert to match
+- **I->I**: Insert to insert
+- **D->M**: Delete to match
+- **D->D**: Delete to delete
+
+## Example Match State
+
+```
+R 2    *	*	*	*	*	*	*	*	*	*	*	*	*	2443	293	*	*	*	*	*	2
+       0	*	*	*	*	*	*	1695	0	0
+```
+
+This represents:
+- Position 2
+- Amino acid R (Arginine)
+- High probability for R (value 293) and Q (value 2443)
+- Neff = 2 (low diversity at this position)
+
+## Creating HHM Files
+
+### From Alignment
+
+```bash
+hhmake -i alignment.a3m -o model.hhm
+```
+
+### With Custom Name
+
+```bash
+hhmake -i alignment.a3m -o model.hhm -name MyProtein
+```
+
+### With Pseudocounts
+
+```bash
+hhmake -i alignment.a3m -o model.hhm -pc_hhm_contxt_a 0.9
+```
+
+## Using HHM Files
+
+### As Query
+
+```bash
+hhsearch -i query.hhm -d database
+```
+
+### As Template
+
+```bash
+hhalign -i query.a3m -t template.hhm
+```
+
+## Binary Format
+
+HH-suite can also use a binary HHM format (.hhm.bin) for faster loading:
+- More compact storage
+- Faster parsing
+- Generated automatically by some tools
+
+## Best Practices
+
+### Building Quality HMMs
+
+1. **Diverse alignments**: Use sequences with varied identity (filter with hhfilter)
+2. **Sufficient sequences**: Aim for Neff > 4 for good coverage
+3. **Quality filtering**: Remove low-coverage sequences
+4. **Pseudocounts**: Use context-specific pseudocounts for better profiles
+
+### Neff Values
+
+- **Neff < 2**: Low diversity, may need more sequences
+- **Neff 4-8**: Good diversity for most purposes
+- **Neff > 10**: High diversity, excellent for sensitive searches
+
+## File Size Considerations
+
+HHM files are typically:
+- Larger than input alignments (due to probability matrices)
+- Smaller than storing full alignments
+- Text format: ~5-10 KB per 100 residues
+- Binary format: ~50% smaller
+
+## See Also
+
+- [A3M Format](/reference/formats/a3m) - Input alignment format
+- [HHR Format](/reference/formats/hhr) - Results output format
+- [hhmake](/reference/hhmake) - Build HMMs from alignments
+- [hhsearch](/reference/hhsearch) - Search with HMMs

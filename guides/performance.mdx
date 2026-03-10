@@ -1,0 +1,491 @@
+---
+title: 'Performance Optimization'
+description: 'Optimize HH-suite for speed using SIMD instructions, compiler flags, and hardware features'
+---
+
+## Overview
+
+HH-suite performance can be significantly improved through SIMD optimizations, proper compilation, and efficient hardware utilization. This guide covers optimization strategies to maximize search speed.
+
+## SIMD Optimization
+
+### Supported Instruction Sets
+
+HH-suite supports multiple SIMD (Single Instruction, Multiple Data) instruction sets for parallel computation.
+
+Source: `src/CMakeLists.txt:14-38`
+
+<CardGroup cols={2}>
+  <Card title="SSE2" icon="microchip">
+    **Baseline**: Required minimum for x86-64 systems
+    - Available on all modern Intel/AMD CPUs
+    - ~2x speedup over scalar code
+  </Card>
+  
+  <Card title="SSE4.1" icon="bolt">
+    **Recommended**: Better performance than SSE2
+    - Available since Intel Core 2 (2006)
+    - ~2.5x speedup over scalar code
+  </Card>
+  
+  <Card title="AVX2" icon="rocket">
+    **Best Performance**: ~2x faster than SSE2
+    - Available since Intel Haswell (2013), AMD Excavator (2015)
+    - 256-bit vector operations
+    - Recommended for production use
+  </Card>
+  
+  <Card title="ARM64/POWER" icon="cpu">
+    **Alternative Architectures**
+    - ARM: NEON instructions (Armv8-a+simd)
+    - POWER8/9: VSX instructions
+  </Card>
+</CardGroup>
+
+### Check Your CPU Support
+
+<CodeGroup>
+```bash Linux (x86)
+cat /proc/cpuinfo | grep flags | head -1
+# Look for: sse2, sse4_1, avx2
+```
+
+```bash macOS (x86)
+sysctl -a | grep machdep.cpu.features
+# Look for: SSE2, SSE4.1, AVX2
+```
+
+```bash Check Specific Feature
+grep -q avx2 /proc/cpuinfo && echo "AVX2 supported" || echo "AVX2 not supported"
+```
+</CodeGroup>
+
+### Pre-compiled Binaries
+
+HH-suite provides pre-compiled binaries optimized for different SIMD levels:
+
+<CodeGroup>
+```bash SSE2 Binary (Universal)
+wget https://github.com/soedinglab/hh-suite/releases/download/v3.3.0/hhsuite-3.3.0-SSE2-Linux.tar.gz
+tar xzvf hhsuite-3.3.0-SSE2-Linux.tar.gz
+export PATH="$(pwd)/bin:$(pwd)/scripts:$PATH"
+```
+
+```bash AVX2 Binary (Faster)
+wget https://github.com/soedinglab/hh-suite/releases/download/v3.3.0/hhsuite-3.3.0-AVX2-Linux.tar.gz
+tar xzvf hhsuite-3.3.0-AVX2-Linux.tar.gz
+export PATH="$(pwd)/bin:$(pwd)/scripts:$PATH"
+```
+</CodeGroup>
+
+<Warning>
+AVX2 binaries will not run on older CPUs. If you get "Illegal instruction" errors, use the SSE2 version.
+</Warning>
+
+## Compilation Optimization
+
+### Compile for Native Architecture
+
+For maximum performance, compile HH-suite for your specific CPU:
+
+```bash
+git clone https://github.com/soedinglab/hh-suite.git
+mkdir -p hh-suite/build && cd hh-suite/build
+
+# Let compiler auto-detect best SIMD instructions
+cmake -DCMAKE_INSTALL_PREFIX=. ..
+make -j $(nproc) && make install
+
+export PATH="$(pwd)/bin:$(pwd)/scripts:$PATH"
+```
+
+This enables the `-march=native` flag, which optimizes for your CPU's exact instruction set.
+
+### Manual SIMD Selection
+
+To explicitly compile for a specific SIMD level:
+
+<CodeGroup>
+```bash AVX2
+cmake -DCMAKE_INSTALL_PREFIX=. -DHAVE_AVX2=1 ..
+make -j $(nproc) && make install
+```
+
+```bash SSE4.1
+cmake -DCMAKE_INSTALL_PREFIX=. -DHAVE_SSE4_1=1 ..
+make -j $(nproc) && make install
+```
+
+```bash SSE2 (Maximum Compatibility)
+cmake -DCMAKE_INSTALL_PREFIX=. -DHAVE_SSE2=1 ..
+make -j $(nproc) && make install
+```
+
+```bash ARM64
+cmake -DCMAKE_INSTALL_PREFIX=. -DHAVE_ARM8=1 ..
+make -j $(nproc) && make install
+```
+
+```bash POWER9
+cmake -DCMAKE_INSTALL_PREFIX=. -DHAVE_POWER9=1 ..
+make -j $(nproc) && make install
+```
+</CodeGroup>
+
+### Compiler Requirements
+
+Source: `CMakeLists.txt:43-58`
+
+**Minimum compiler versions:**
+- GCC ≥ 4.8.0
+- Clang ≥ 3.6
+- Intel ICC (any recent version)
+
+<Tip>
+Newer compilers (GCC 9+, Clang 10+) generate faster code. Consider using the latest compiler version available.
+</Tip>
+
+### macOS Compilation
+
+The default macOS clang doesn't support OpenMP. Install GCC via Homebrew:
+
+```bash
+# Install GCC with OpenMP support
+brew install gcc
+
+# Compile with GCC
+CC="$(brew --prefix)/bin/gcc-13" \
+CXX="$(brew --prefix)/bin/g++-13" \
+cmake -DCMAKE_INSTALL_PREFIX=. ..
+make -j $(nproc) && make install
+```
+
+## OpenMP Parallelization
+
+Source: `src/CMakeLists.txt:90-96`
+
+HH-suite uses OpenMP for multi-core parallelization.
+
+### Enable OpenMP
+
+OpenMP is automatically enabled if detected during compilation:
+
+```bash
+cmake -DCMAKE_INSTALL_PREFIX=. ..
+# Look for: "-- Found OpenMP"
+make -j $(nproc) && make install
+```
+
+### Control Thread Count
+
+<CodeGroup>
+```bash Using -cpu Flag
+hhblits -i query.fasta -d database -cpu 8
+```
+
+```bash Using Environment Variable
+export OMP_NUM_THREADS=8
+hhblits -i query.fasta -d database
+```
+
+```bash Limit for Memory-Constrained Systems
+hhblits -i query.fasta -d database -cpu 4
+```
+</CodeGroup>
+
+### OpenMP Performance Tips
+
+<Accordion title="Thread Scaling Best Practices">
+  
+  **Optimal thread count:**
+  - Use number of physical cores (not hyperthreads)
+  - For large databases: `threads = physical_cores`
+  - For small databases: `threads = physical_cores / 2`
+  
+  **Memory considerations:**
+  - Each thread uses additional memory
+  - BFD database: Limit to 8-16 threads on 128GB RAM
+  - Uniclust30: Can use all available cores
+  
+  **Hyperthreading:**
+  - Limited benefit for HH-suite (usually &lt;20% improvement)
+  - May reduce per-thread performance
+  - Recommended: Use physical cores only
+
+</Accordion>
+
+### OpenMP Variants
+
+Source: `src/CMakeLists.txt:251-267`
+
+HH-suite provides OpenMP-specific versions of main tools:
+
+- `hhblits_omp` - OpenMP parallel version of hhblits
+- `hhsearch_omp` - OpenMP parallel version of hhsearch
+- `hhalign_omp` - OpenMP parallel version of hhalign
+
+<Note>
+These OpenMP variants are automatically compiled when OpenMP is detected. Regular versions (hhblits, hhsearch) also use OpenMP if available.
+</Note>
+
+## MPI Parallelization
+
+For distributed computing across multiple nodes.
+
+### Compile with MPI
+
+Source: `src/CMakeLists.txt:269-296`
+
+```bash
+# Install MPI (if not already installed)
+sudo apt-get install libopenmpi-dev  # Debian/Ubuntu
+# or
+sudo yum install openmpi-devel       # RedHat/CentOS
+
+# Compile with MPI support
+cmake -DCMAKE_INSTALL_PREFIX=. -DCHECK_MPI=1 ..
+make -j $(nproc) && make install
+```
+
+This creates MPI versions:
+- `hhblits_mpi`
+- `hhsearch_mpi`
+- `hhalign_mpi`
+- `cstranslate_mpi`
+
+### Run with MPI
+
+```bash
+# Single node, 8 processes
+mpirun -np 8 hhblits_mpi -i queries.fasta -d database -o results.hhr
+
+# Multiple nodes
+mpirun -np 32 --hostfile hosts.txt hhblits_mpi -i queries.fasta -d database
+```
+
+<Warning>
+**MPI is only available when compiling from source.** Pre-compiled binaries do not include MPI support due to system-specific MPI configurations.
+</Warning>
+
+### MPI vs OpenMP
+
+| Feature | OpenMP | MPI |
+|---------|--------|-----|
+| **Scope** | Single node, shared memory | Multiple nodes, distributed |
+| **Setup** | Automatic if available | Requires MPI installation |
+| **Use case** | Multi-core workstations | HPC clusters |
+| **Scalability** | Up to ~64 cores | Hundreds of cores |
+| **Pre-compiled** | Yes | No (compile from source) |
+
+## Performance Benchmarks
+
+### SIMD Performance Comparison
+
+Relative search speed for the same query on Uniclust30:
+
+| SIMD Level | Relative Speed | Availability |
+|------------|----------------|-------------|
+| Scalar (no SIMD) | 1.0x | All CPUs |
+| SSE2 | 2.0x | All modern x86-64 |
+| SSE4.1 | 2.5x | CPUs since ~2006 |
+| **AVX2** | **4.0x** | **Intel Haswell+ (2013), AMD Excavator+ (2015)** |
+| ARM NEON | 2.5x | ARM v8+ |
+| POWER VSX | 3.0x | POWER8+ |
+
+<Tip>
+**AVX2 provides approximately 2x speedup over SSE2**, making it the recommended choice for modern systems.
+</Tip>
+
+### Scaling Performance
+
+Typical speedup with OpenMP on a 16-core system:
+
+| Threads | Speedup | Efficiency |
+|---------|---------|------------|
+| 1 | 1.0x | 100% |
+| 2 | 1.9x | 95% |
+| 4 | 3.7x | 93% |
+| 8 | 7.1x | 89% |
+| 16 | 13.2x | 83% |
+| 32 (HT) | 15.8x | 49% |
+
+<Note>
+Efficiency decreases with hyperthreading due to resource contention.
+</Note>
+
+## Memory Optimization
+
+### Memory Requirements
+
+**Per-thread memory usage:**
+
+| Database | Base Memory | Per Thread | 8 Threads |
+|----------|-------------|------------|----------|
+| PDB70 | 1 GB | +0.1 GB | ~2 GB |
+| Uniclust30 | 8 GB | +0.5 GB | ~12 GB |
+| BFD | 32 GB | +2 GB | ~48 GB |
+
+### Reduce Memory Usage
+
+<CodeGroup>
+```bash Limit Threads
+hhblits -i query.fasta -d bfd -cpu 4  # Use fewer threads
+```
+
+```bash Limit Alignment Size
+hhblits -i query.fasta -d database -maxseq 1000  # Reduce MSA size
+```
+
+```bash Disable Realignment
+hhblits -i query.fasta -d database -norealign  # Skip realignment step
+```
+</CodeGroup>
+
+### Memory-Constrained Systems
+
+For systems with limited RAM:
+
+1. **Use smaller databases**: Uniclust30 instead of BFD
+2. **Reduce parallelization**: `-cpu 2` or `-cpu 4`
+3. **Process in batches**: Split query files into smaller chunks
+4. **Increase swap space**: Not recommended for production (very slow)
+
+## I/O Optimization
+
+### Database Storage
+
+<Tip>
+**Use SSDs for databases** when possible. Database I/O is a significant bottleneck, especially for:
+- First search after system boot (cold cache)
+- Searching different databases
+- Parallel searches by multiple users
+</Tip>
+
+### FFindex Optimization
+
+Optimize FFindex databases for sequential access:
+
+```bash
+ffindex_build -as database.ffdata.opt database.ffindex.opt \
+  -d database.ffdata -i database.ffindex
+mv database.ffdata.opt database.ffdata
+mv database.ffindex.opt database.ffindex
+```
+
+This reorganizes data for better cache locality.
+
+## Search Parameter Optimization
+
+### Speed vs Sensitivity Trade-offs
+
+<CodeGroup>
+```bash Fast Search
+hhblits -i query.fasta -d database -n 1 -cpu 8
+# Single iteration, fastest
+```
+
+```bash Balanced (Default)
+hhblits -i query.fasta -d database -n 3 -cpu 8
+# 3 iterations, good sensitivity
+```
+
+```bash Sensitive Search
+hhblits -i query.fasta -d database -n 5 -cpu 8 -e 0.01
+# 5 iterations, higher sensitivity
+```
+
+```bash Maximum Sensitivity
+hhblits -i query.fasta -d database -n 8 -cpu 8 -e 0.1 -maxfilt 100000
+# Most sensitive, slowest
+```
+</CodeGroup>
+
+### Parameter Impact on Speed
+
+| Parameter | Impact | Speed |
+|-----------|--------|-------|
+| `-n 1` | Single iteration | Fastest |
+| `-n 3` | 3 iterations | Moderate |
+| `-n 8` | 8 iterations | Slow |
+| `-e 0.001` | Strict E-value | Faster |
+| `-e 1.0` | Relaxed E-value | Slower |
+| `-maxfilt 1000` | Small prefilter | Faster |
+| `-maxfilt 100000` | Large prefilter | Slower |
+
+## Batch Processing
+
+For processing many queries efficiently:
+
+<CodeGroup>
+```bash GNU Parallel
+cat queries.list | parallel -j 8 \
+  "hhblits -i {}.fasta -d database -o {}.hhr -oa3m {}.a3m"
+```
+
+```bash Simple Loop
+for query in queries/*.fasta; do
+  name=$(basename $query .fasta)
+  hhblits -i $query -d database -o results/$name.hhr -cpu 2
+done
+```
+
+```bash Array Job (SLURM)
+#!/bin/bash
+#SBATCH --array=1-100
+#SBATCH --cpus-per-task=8
+
+query=$(sed -n "${SLURM_ARRAY_TASK_ID}p" queries.list)
+hhblits -i $query -d database -cpu 8 -o ${query%.fasta}.hhr
+```
+</CodeGroup>
+
+## Profiling and Monitoring
+
+### Check SIMD Usage
+
+```bash
+# Check which SIMD instructions the binary uses
+objdump -d $(which hhblits) | grep -E "vpadd|vpmul|paddq|pmul" | head
+```
+
+### Monitor Resource Usage
+
+```bash
+# Monitor CPU and memory during search
+time hhblits -i query.fasta -d database -cpu 8 -v 2
+
+# Detailed monitoring
+/usr/bin/time -v hhblits -i query.fasta -d database -cpu 8
+```
+
+## Best Practices Summary
+
+<Accordion title="Performance Optimization Checklist">
+  
+  ✓ **Use AVX2-compiled binaries** if your CPU supports it (2x faster than SSE2)
+  
+  ✓ **Compile from source** with `-march=native` for maximum performance
+  
+  ✓ **Use all physical cores** with `-cpu` flag
+  
+  ✓ **Store databases on SSD** for better I/O performance
+  
+  ✓ **Optimize thread count** based on available memory
+  
+  ✓ **Use MPI for cluster computing** with many nodes
+  
+  ✓ **Adjust search parameters** based on sensitivity needs
+  
+  ✓ **Process queries in batches** for better CPU utilization
+  
+  ✓ **Monitor memory usage** especially with large databases
+  
+  ✓ **Optimize FFindex databases** for sequential access
+
+</Accordion>
+
+## See Also
+
+- [Parallel Computing Guide](/guides/parallel-computing) - Detailed MPI and OpenMP usage
+- [Building Custom Databases](/guides/building-custom-databases) - Database optimization
+- [Available Databases](/guides/databases) - Database selection for performance

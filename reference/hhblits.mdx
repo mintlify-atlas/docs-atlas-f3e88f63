@@ -1,0 +1,504 @@
+---
+title: 'hhblits'
+description: 'HMM-HMM-based lightning-fast iterative sequence search'
+---
+
+## Synopsis
+
+```bash
+hhblits -i <query> -d <database> [options]
+```
+
+## Description
+
+HHblits is a sensitive, general-purpose, iterative sequence search tool that represents both query and database sequences by HMMs. You can search HHblits databases starting with a single query sequence, a multiple sequence alignment (MSA), or an HMM. HHblits prints out a ranked list of database HMMs/MSAs and can also generate an MSA by merging the significant database HMMs/MSAs onto the query MSA.
+
+## Required Parameters
+
+<ParamField path="-i" type="file" required>
+  Input/query file: single sequence or multiple sequence alignment (MSA) in a3m, a2m, or FASTA format, or HMM in hhm format
+</ParamField>
+
+<ParamField path="-d" type="database" required>
+  Database name (e.g. uniprot20_29Feb2012). Multiple databases may be specified with '-d &lt;db1&gt; -d &lt;db2&gt; ...'
+</ParamField>
+
+## Search Options
+
+<ParamField path="-n" type="integer" default="1">
+  Number of iterations (range: 1-8)
+</ParamField>
+
+<ParamField path="-e" type="float" default="0.001">
+  E-value cutoff for inclusion in result alignment (range: 0-1)
+</ParamField>
+
+<ParamField path="-neffmax" type="float" default="20.0">
+  Skip further search iterations when diversity Neff of query MSA becomes larger than neffmax (range: 1-20)
+</ParamField>
+
+## Input Alignment Format
+
+<ParamField path="-M" type="string" default="a2m">
+  Input alignment format:
+  - `a2m` or `a3m`: upper case = Match; lower case = Insert; '-' = Delete; '.' = gaps aligned to inserts
+  - `first`: FASTA format where columns with residue in 1st sequence are match states
+  - `[0-100]`: FASTA format where columns with fewer than X% gaps are match states
+</ParamField>
+
+<ParamField path="-tags" type="flag">
+  Neutralize His-, C-myc-, FLAG-tags, and trypsin recognition sequence to background distribution
+</ParamField>
+
+<ParamField path="-notags" type="flag" default="true">
+  Do NOT neutralize tags (default)
+</ParamField>
+
+## Output Options
+
+<ParamField path="-o" type="file">
+  Write results in standard format to file (default: &lt;infile.hhr&gt;)
+</ParamField>
+
+<ParamField path="-oa3m" type="file">
+  Write result MSA with significant matches in a3m format
+</ParamField>
+
+<ParamField path="-opsi" type="file">
+  Write result MSA of significant matches in PSI-BLAST format
+</ParamField>
+
+<ParamField path="-ohhm" type="file">
+  Write HHM file for result MSA of significant matches
+</ParamField>
+
+<ParamField path="-oalis" type="string">
+  Write MSAs in A3M format after each iteration (base name)
+</ParamField>
+
+<ParamField path="-blasttab" type="file">
+  Write result in tabular BLAST format (compatible with -m 8 or -outfmt 6 output)
+  
+  Columns: query, target, #match/tLen, #mismatch, #gapOpen, qstart, qend, tstart, tend, eval, score
+</ParamField>
+
+<ParamField path="-add_cons" type="flag">
+  Generate consensus sequence as master sequence of query MSA
+</ParamField>
+
+<ParamField path="-hide_cons" type="flag">
+  Don't show consensus sequence in alignments
+</ParamField>
+
+<ParamField path="-hide_pred" type="flag">
+  Don't show predicted 2ndary structure in alignments
+</ParamField>
+
+<ParamField path="-hide_dssp" type="flag">
+  Don't show DSSP 2ndary structure in alignments
+</ParamField>
+
+<ParamField path="-show_ssconf" type="flag">
+  Show confidences for predicted 2ndary structure in alignments
+</ParamField>
+
+<ParamField path="-seq" type="integer" default="varies">
+  Max. number of query/template sequences displayed
+</ParamField>
+
+<ParamField path="-aliw" type="integer" default="80">
+  Number of columns per line in alignment list
+</ParamField>
+
+<ParamField path="-p" type="float" default="20.0">
+  Minimum probability in summary and alignment list (range: 0-100)
+</ParamField>
+
+<ParamField path="-E" type="float" default="1e+06">
+  Maximum E-value in summary and alignment list (range: 0-inf)
+</ParamField>
+
+<ParamField path="-Z" type="integer" default="500">
+  Maximum number of lines in summary hit list
+</ParamField>
+
+<ParamField path="-z" type="integer" default="10">
+  Minimum number of lines in summary hit list
+</ParamField>
+
+<ParamField path="-B" type="integer" default="500">
+  Maximum number of alignments in alignment list
+</ParamField>
+
+<ParamField path="-b" type="integer" default="10">
+  Minimum number of alignments in alignment list
+</ParamField>
+
+## Prefilter Options
+
+<ParamField path="-noprefilt" type="flag">
+  Disable all filter steps
+</ParamField>
+
+<ParamField path="-noaddfilter" type="flag">
+  Disable all filter steps (except for fast prefiltering)
+</ParamField>
+
+<ParamField path="-maxfilt" type="integer" default="20000">
+  Max number of hits allowed to pass 2nd prefilter
+</ParamField>
+
+<ParamField path="-min_prefilter_hits" type="integer" default="100">
+  Min number of hits to pass prefilter
+</ParamField>
+
+<ParamField path="-prepre_smax_thresh" type="integer" default="10">
+  Min score threshold of ungapped prefilter
+</ParamField>
+
+<ParamField path="-pre_evalue_thresh" type="float" default="1000.0">
+  Max E-value threshold of Smith-Waterman prefilter score
+</ParamField>
+
+<ParamField path="-pre_bitfactor" type="integer" default="4">
+  Prefilter scores are in units of 1 bit / pre_bitfactor
+</ParamField>
+
+<ParamField path="-pre_gap_open" type="integer" default="20">
+  Gap open penalty in prefilter Smith-Waterman alignment
+</ParamField>
+
+<ParamField path="-pre_gap_extend" type="integer" default="4">
+  Gap extend penalty in prefilter Smith-Waterman alignment
+</ParamField>
+
+<ParamField path="-pre_score_offset" type="integer" default="50">
+  Offset on sequence profile scores in prefilter S-W alignment
+</ParamField>
+
+## Filter Options
+
+Filter options applied to query MSA, database MSAs, and result MSA.
+
+<ParamField path="-all" type="flag">
+  Show all sequences in result MSA; do not filter result MSA
+</ParamField>
+
+<ParamField path="-interim_filter" type="string" default="FULL">
+  Filter sequences of query MSA during merging to avoid early stop:
+  - `NONE`: disables the intermediate filter
+  - `FULL`: if an early stop occurs compare filter seqs in an all vs. all comparison
+</ParamField>
+
+<ParamField path="-id" type="integer" default="90">
+  Maximum pairwise sequence identity (range: 0-100)
+</ParamField>
+
+<ParamField path="-diff" type="integer" default="1000">
+  Filter MSAs by selecting most diverse set of sequences, keeping at least this many seqs in each MSA block of length 50. Zero and non-numerical values turn off the filtering.
+</ParamField>
+
+<ParamField path="-cov" type="integer" default="0">
+  Minimum coverage with master sequence (%) (range: 0-100)
+</ParamField>
+
+<ParamField path="-qid" type="integer" default="0">
+  Minimum sequence identity with master sequence (%) (range: 0-100)
+</ParamField>
+
+<ParamField path="-qsc" type="float" default="-20.0">
+  Minimum score per column with master sequence
+</ParamField>
+
+<ParamField path="-neff" type="float">
+  Target diversity of multiple sequence alignment (default: off, range: 1-inf)
+</ParamField>
+
+<ParamField path="-mark" type="flag">
+  Do not filter out sequences marked by ">@" in their name line
+</ParamField>
+
+## HMM-HMM Alignment Options
+
+<ParamField path="-norealign" type="flag">
+  Do NOT realign displayed hits with MAC algorithm
+</ParamField>
+
+<ParamField path="-realign" type="flag" default="true">
+  Realign displayed hits with MAC algorithm (default)
+</ParamField>
+
+<ParamField path="-realign_old_hits" type="flag">
+  Realign hits from previous iterations
+</ParamField>
+
+<ParamField path="-realign_max" type="integer" default="500">
+  Realign max. this many hits
+</ParamField>
+
+<ParamField path="-mact" type="float" default="0.35">
+  Posterior prob threshold for MAC realignment controlling greediness at alignment ends: 0=global, >0.1=local (range: 0-1)
+</ParamField>
+
+<ParamField path="-glob" type="flag">
+  Use global alignment mode for searching/ranking
+</ParamField>
+
+<ParamField path="-loc" type="flag" default="true">
+  Use local alignment mode for searching/ranking (default)
+</ParamField>
+
+<ParamField path="-ovlp" type="integer" default="0">
+  Banded alignment: forbid this many largest diagonals |i-j| of DP matrix
+</ParamField>
+
+<ParamField path="-alt" type="integer" default="2">
+  Show up to this many alternative alignments with raw score > smin
+</ParamField>
+
+<ParamField path="-premerge" type="integer" default="3">
+  Merge this many hits to query MSA before aligning remaining hits
+</ParamField>
+
+<ParamField path="-smin" type="float" default="20.0">
+  Minimum raw score for alternative alignments
+</ParamField>
+
+<ParamField path="-shift" type="float" default="0.0">
+  Profile-profile score offset (range: -1 to 1)
+</ParamField>
+
+<ParamField path="-corr" type="float" default="0.1">
+  Weight of term for pair correlations (range: 0-1)
+</ParamField>
+
+<ParamField path="-sc" type="integer" default="1">
+  Amino acid score (tja: template HMM at column j):
+  - `0`: log2 Sum(tja*qia/pa) (pa: aa background frequencies)
+  - `1`: log2 Sum(tja*qia/pqa) (pqa = 1/2*(pa+ta))
+  - `2`: log2 Sum(tja*qia/ta) (ta: av. aa freqs in template)
+  - `3`: log2 Sum(tja*qia/qa) (qa: av. aa freqs in query)
+  - `5`: local amino acid composition correction
+</ParamField>
+
+<ParamField path="-ssm" type="integer" default="2">
+  Secondary structure scoring:
+  - `0`: no ss scoring
+  - `1,2`: ss scoring after or during alignment
+  - `3,4`: ss scoring after or during alignment, predicted vs. predicted
+</ParamField>
+
+<ParamField path="-ssw" type="float" default="0.11">
+  Weight of ss score (range: 0-1)
+</ParamField>
+
+<ParamField path="-ssa" type="float" default="1.0">
+  SS confusion matrix = (1-ssa)*I + ssa*psipred-confusion-matrix (range: 0-1)
+</ParamField>
+
+<ParamField path="-wg" type="flag">
+  Use global sequence weighting for realignment
+</ParamField>
+
+## Gap Cost Options
+
+<ParamField path="-gapb" type="float" default="1.0">
+  Transition pseudocount admixture (range: 0-inf)
+</ParamField>
+
+<ParamField path="-gapd" type="float" default="0.15">
+  Transition pseudocount admixture for open gap (range: 0-inf)
+</ParamField>
+
+<ParamField path="-gape" type="float" default="1.0">
+  Transition pseudocount admixture for extend gap (range: 0-1.5)
+</ParamField>
+
+<ParamField path="-gapf" type="float" default="0.6">
+  Factor to increase/reduce gap open penalty for deletes (range: >0)
+</ParamField>
+
+<ParamField path="-gapg" type="float" default="0.6">
+  Factor to increase/reduce gap open penalty for inserts (range: >0)
+</ParamField>
+
+<ParamField path="-gaph" type="float" default="0.6">
+  Factor to increase/reduce gap extend penalty for deletes (range: >0)
+</ParamField>
+
+<ParamField path="-gapi" type="float" default="0.6">
+  Factor to increase/reduce gap extend penalty for inserts (range: >0)
+</ParamField>
+
+<ParamField path="-egq" type="float" default="0.0">
+  Penalty (bits) for end gaps aligned to query residues (range: 0-inf)
+</ParamField>
+
+<ParamField path="-egt" type="float" default="0.0">
+  Penalty (bits) for end gaps aligned to template residues (range: 0-inf)
+</ParamField>
+
+## Pseudocount Options
+
+### Context-specific HHM pseudocounts
+
+<ParamField path="-pc_hhm_contxt_mode" type="integer" default="3">
+  Position dependence of pc admixture 'tau' (pc mode):
+  - `0`: no pseudo counts: tau = 0
+  - `1`: constant: tau = a
+  - `2`: diversity-dependent: tau = a/(1+((Neff[i]-1)/b)^c)
+  - `3`: CSBlast admixture: tau = a(1+b)/(Neff[i]+b)
+</ParamField>
+
+<ParamField path="-pc_hhm_contxt_a" type="float" default="0.9">
+  Overall pseudocount admixture (range: 0-1)
+</ParamField>
+
+<ParamField path="-pc_hhm_contxt_b" type="float" default="4.0">
+  Neff threshold value for mode 2 (range: 1-inf)
+</ParamField>
+
+<ParamField path="-pc_hhm_contxt_c" type="float" default="1.0">
+  Extinction exponent c for mode 2 (range: 0-3)
+</ParamField>
+
+### Context-independent HHM pseudocounts
+
+<ParamField path="-pc_hhm_nocontxt_mode" type="integer" default="2">
+  Position dependence of pc admixture 'tau' (pc mode) - used for templates; used for query if contxt file is not available
+</ParamField>
+
+<ParamField path="-pc_hhm_nocontxt_a" type="float" default="1.0">
+  Overall pseudocount admixture (range: 0-1)
+</ParamField>
+
+<ParamField path="-pc_hhm_nocontxt_b" type="float" default="1.5">
+  Neff threshold value for mode 2 (range: 1-inf)
+</ParamField>
+
+<ParamField path="-pc_hhm_nocontxt_c" type="float" default="1.0">
+  Extinction exponent c for mode 2 (range: 0-3)
+</ParamField>
+
+### Context-specific prefilter pseudocounts
+
+<ParamField path="-pc_prefilter_contxt_mode" type="integer" default="2">
+  Position dependence of pc admixture 'tau' (pc mode)
+</ParamField>
+
+<ParamField path="-pc_prefilter_contxt_a" type="float" default="0.8">
+  Overall pseudocount admixture (range: 0-1)
+</ParamField>
+
+<ParamField path="-pc_prefilter_contxt_b" type="float" default="2.0">
+  Neff threshold value for mode 2 (range: 1-inf)
+</ParamField>
+
+<ParamField path="-pc_prefilter_contxt_c" type="float" default="1.0">
+  Extinction exponent c for mode 2 (range: 0-3)
+</ParamField>
+
+### Context-independent prefilter pseudocounts
+
+<ParamField path="-pc_prefilter_nocontxt_mode" type="integer" default="2">
+  Position dependence of pc admixture 'tau' (used if context file is not available)
+</ParamField>
+
+<ParamField path="-pc_prefilter_nocontxt_a" type="float" default="1.0">
+  Overall pseudocount admixture (range: 0-1)
+</ParamField>
+
+<ParamField path="-pc_prefilter_nocontxt_b" type="float" default="1.5">
+  Neff threshold value for mode 2 (range: 1-inf)
+</ParamField>
+
+<ParamField path="-pc_prefilter_nocontxt_c" type="float" default="1.0">
+  Extinction exponent c for mode 2 (range: 0-3)
+</ParamField>
+
+### Context-specific pseudocounts
+
+<ParamField path="-nocontxt" type="flag">
+  Use substitution-matrix instead of context-specific pseudocounts
+</ParamField>
+
+<ParamField path="-contxt" type="file">
+  Context file for computing context-specific pseudocounts
+</ParamField>
+
+<ParamField path="-csw" type="float" default="1.6">
+  Weight of central position in cs pseudocount mode (range: 0-inf)
+</ParamField>
+
+<ParamField path="-csb" type="float" default="0.85">
+  Weight decay parameter for positions in cs pc mode (range: 0-1)
+</ParamField>
+
+## Other Options
+
+<ParamField path="-v" type="integer" default="2">
+  Verbose mode:
+  - `0`: no screen output
+  - `1`: only warnings
+  - `2`: verbose
+</ParamField>
+
+<ParamField path="-cpu" type="integer" default="2">
+  Number of CPUs to use (for shared memory SMPs)
+</ParamField>
+
+<ParamField path="-scores" type="file">
+  Write scores for all pairwise comparisons to file
+</ParamField>
+
+<ParamField path="-filter_matrices" type="flag">
+  Filter matrices for similarity to output at most 100 matrices
+</ParamField>
+
+<ParamField path="-atab" type="file">
+  Write all alignments in tabular layout to file
+</ParamField>
+
+<ParamField path="-maxseq" type="integer" default="65535">
+  Max number of input rows
+</ParamField>
+
+<ParamField path="-maxres" type="integer" default="20000">
+  Max number of HMM columns
+</ParamField>
+
+<ParamField path="-maxmem" type="float" default="3.0">
+  Limit memory for realignment (in GB, range: 1-inf)
+</ParamField>
+
+## Examples
+
+### Basic search
+
+```bash
+hhblits -i query.fas -o query.hhr -d ./uniclust30
+```
+
+### Single iteration with output MSA
+
+```bash
+hhblits -i query.fas -o query.hhr -oa3m query.a3m -n 1 -d ./uniclust30
+```
+
+## Exit Codes
+
+- `0`: Success
+- `1`: File format error
+- `2`: File access error
+- `3`: Memory error
+- `4`: Command line error
+- `5`: Internal numeric error
+
+## See Also
+
+- [hhsearch](/reference/hhsearch) - Search a database of HMMs
+- [hhalign](/reference/hhalign) - Align two alignments or HMMs
+- [hhmake](/reference/hhmake) - Build an HMM from an alignment
+- [A3M Format](/reference/formats/a3m) - Input alignment format
+- [HHM Format](/reference/formats/hhm) - HMM file format
+- [HHR Format](/reference/formats/hhr) - Results output format

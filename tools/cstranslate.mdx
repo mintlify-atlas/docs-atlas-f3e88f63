@@ -1,0 +1,175 @@
+---
+title: 'cstranslate'
+description: 'Translate sequences and alignments into abstract state alphabets'
+---
+
+## Overview
+
+`cstranslate` converts protein sequences or alignments into an abstract state alphabet (AS219) for improved sequence comparison. This context-specific transformation can enhance homology detection by reducing the 20-letter amino acid alphabet to 219 representative states based on local sequence context.
+
+## Basic Usage
+
+<CodeGroup>
+```bash Single File
+cstranslate -i input.a3m -o output.as
+```
+
+```bash FFindex Database
+cstranslate -i database_base -o output_base -f
+```
+
+```bash With Pseudocounts
+cstranslate -i input.a3m -o output.as -x 0.90 -c 12.0
+```
+</CodeGroup>
+
+## Command-Line Options
+
+### Input/Output
+
+| Option | Description | Default |
+|--------|-------------|--------|
+| `-i, --infile <file>` | Input file with alignment or sequence | Required |
+| `-o, --outfile <file>` | Output file for abstract state sequence | `<infile>.as` |
+| `-a, --append <file>` | Append output to this file | None |
+| `-I, --informat` | Input format: `prf`, `seq`, `fas`, `a2m`, `a3m`, `ca3m` | `auto` |
+| `-O, --outformat` | Output format: `seq` (sequence) or `prf` (profile) | `seq` |
+
+### Pseudocount Options
+
+| Option | Description | Default |
+|--------|-------------|--------|
+| `-x, --pc-admix [0,1]` | Pseudocount admixture for context-specific pseudocounts | `0.90` |
+| `-c, --pc-ali [0,inf]` | Constant in pseudocount calculation for alignments | `12.0` |
+| `-D, --context-data <file>` | Context-data file for pseudocounts | `internal` |
+| `-A, --alphabet <file>` | Abstract state alphabet (219 states) | `internal` |
+| `-w, --weight [0,inf]` | Weight of abstract state column in emission | `1000.0` |
+
+### Advanced Options
+
+| Option | Description |
+|--------|-------------|
+| `-M, --match-assign [0:100]` | Make FASTA columns with &lt;X% gaps match columns |
+| `-f, --ffindex` | Read/write from FFindex databases (enables OpenMP) |
+| `-v, --verbose` | Verbose output mode |
+
+## How It Works
+
+<Steps>
+  <Step title="Read Input">
+    `cstranslate` reads protein sequences or multiple alignments in various formats (A3M, FASTA, etc.)
+  </Step>
+  
+  <Step title="Apply Context-Specific Pseudocounts">
+    If enabled, adds context-specific pseudocounts using a context library or CRF model to improve profile quality
+  </Step>
+  
+  <Step title="Translate to AS219">
+    Converts the amino acid profile to a 219-state abstract alphabet based on posterior probabilities from the context library
+  </Step>
+  
+  <Step title="Output">
+    Writes either the abstract state sequence (seq) or full profile (prf) to the output file
+  </Step>
+</Steps>
+
+## Input Formats
+
+`cstranslate` supports multiple input formats:
+
+- **prf**: Profile format with amino acid frequencies
+- **seq**: Single sequence
+- **fas/a2m/a3m**: Multiple sequence alignments
+- **ca3m**: Compressed A3M format (requires FFindex)
+
+<Note>
+When using `auto` format detection, the file extension determines the input format.
+</Note>
+
+## Examples
+
+### Translate A3M Alignment
+
+```bash
+cstranslate -i query.a3m -o query.as
+```
+
+Convert an A3M multiple alignment to abstract state sequence.
+
+### Translate with Custom Pseudocounts
+
+```bash
+cstranslate -i query.a3m -o query.as -x 0.85 -c 10.0
+```
+
+Use custom pseudocount parameters: 85% admixture and constant 10.0.
+
+### Batch Processing with FFindex
+
+```bash
+cstranslate -i database_a3m -o database_cs219 -f -I a3m -O seq
+```
+
+Process an entire FFindex database in parallel using OpenMP.
+
+### Output Profile Instead of Sequence
+
+```bash
+cstranslate -i query.a3m -o query.prf -O prf
+```
+
+Generate a full abstract state profile rather than just the consensus sequence.
+
+## MPI Version
+
+<Warning>
+The MPI version (`cstranslate_mpi`) is only available when compiling from source with MPI support enabled.
+</Warning>
+
+For distributed processing of large database conversions:
+
+```bash
+mpirun -np 8 cstranslate_mpi -i database_a3m -o database_cs219 -f
+```
+
+## Performance Considerations
+
+<Accordion title="Optimization Tips">
+  - Use `-f` (FFindex mode) with OpenMP for parallel processing
+  - The internal context library is embedded in the binary for fast access
+  - Pseudocount calculation is the most computationally intensive step
+  - Consider using the MPI version for very large databases
+</Accordion>
+
+## Technical Details
+
+### Abstract State Alphabet (AS219)
+
+The AS219 alphabet consists of 219 representative states derived from local sequence profiles. Each state represents a characteristic amino acid distribution pattern:
+
+- Reduces alphabet size while preserving sequence context
+- Improves remote homology detection
+- Based on context-specific profile libraries
+
+### Context-Specific Pseudocounts
+
+Source: `/home/daytona/workspace/source/src/cs/cstranslate_app.h:64-72`
+
+The pseudocount calculation uses either:
+
+1. **Library-based approach** (default): Uses a pre-computed context library
+2. **CRF approach**: Uses a Conditional Random Field model
+
+Both methods add context-specific pseudocounts to improve profile quality for remote homologs.
+
+## Related Tools
+
+- [hhblits](/tools/hhblits) - Can use CS219 profiles for searching
+- [hhmake](/tools/hhmake) - Creates HMM profiles from alignments
+- [reformat.pl](/tools/scripts#reformatpl) - Convert between alignment formats
+
+## See Also
+
+- [File Formats Guide](/guides/file-formats) - Details on A3M, HHM, and other formats
+- [Building Custom Databases](/guides/building-custom-databases) - Using cstranslate in database pipelines
+- [Performance Optimization](/guides/performance) - Tips for large-scale processing

@@ -1,0 +1,421 @@
+---
+title: 'Helper Scripts'
+description: 'Perl and Python utilities for format conversion, database building, and workflow automation'
+---
+
+## Overview
+
+HH-suite includes numerous helper scripts written in Perl and Python for common bioinformatics tasks. These scripts handle format conversion, database preparation, secondary structure prediction, and workflow automation.
+
+## Format Conversion
+
+### reformat.pl
+
+Convert multiple sequence alignments between different formats.
+
+#### Supported Formats
+
+**Input formats:**
+- `fas` - Aligned FASTA (lower/upper case equivalent, '.' and '-' equivalent)
+- `a2m` - Aligned FASTA (inserts: lower case, matches: upper case, deletes: '-', gaps: '.')
+- `a3m` - Like A2M, but gaps aligned to inserts may be omitted
+- `sto` - Stockholm format (HMMER output)
+- `psi` - PSI-BLAST format
+- `clu` - Clustal format
+
+**Output formats:**
+- `fas` - Aligned FASTA (all gaps as '-')
+- `a2m` - A2M format
+- `a3m` - A3M format (gaps to inserts omitted)
+- `sto` - Stockholm format (sequences in one block)
+- `psi` - PSI-BLAST format
+- `clu` - Clustal format
+
+#### Usage
+
+```bash
+reformat.pl [informat] [outformat] <infile> <outfile> [options]
+```
+
+<Note>
+If no format is specified, the file extension is used to determine the format (`.aln` is treated as `clu`).
+</Note>
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `-v` | Verbose mode |
+| `-num` | Add number prefix to sequence names: `1:name`, `2:name`, etc. |
+| `-noss` | Remove secondary structure sequences (beginning with `>ss_`) |
+| `-sa` | Keep solvent accessibility sequences (beginning with `>sa_`) |
+| `-M first` | Make all columns with residue in first sequence match columns |
+| `-M <int>` | Make columns with &lt;X% gaps match columns (for a2m/a3m output) |
+| `-r` | Remove all lower case residues (insert states) after `-M` is processed |
+| `-r <int>` | Remove lower case columns with >X% gaps |
+| `-g ''` | Suppress all gaps |
+| `-g '-'` | Write all gaps as '-' |
+| `-uc` | Write all residues in upper case (after all other options) |
+| `-lc` | Write all residues in lower case (after all other options) |
+| `-l <int>` | Number of residues per line (default: 100) |
+| `-d <int>` | Maximum characters in nameline (default: 1000) |
+
+#### Examples
+
+<CodeGroup>
+```bash Basic Conversion
+reformat.pl a3m a2m input.a3m output.a2m
+```
+
+```bash Remove Inserts
+reformat.pl input.a3m output.fas -r -M 90
+```
+
+```bash Batch Convert
+reformat.pl fas sto '*.fasta' .stockholm
+```
+
+```bash Remove Secondary Structure
+reformat.pl input.a3m output.a3m -noss -num
+```
+</CodeGroup>
+
+## Database Building
+
+### hhsuitedb.py
+
+Create HH-suite database files from A3M and HHM files.
+
+Source: `scripts/hhsuitedb.py`
+
+#### Usage
+
+```bash
+hhsuitedb.py -o <db_name> \
+  [-ia3m <a3m_dir>] \
+  [-ihhm <hhm_dir>] \
+  [-ics <cs_dir>] \
+  [options]
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `-o <name>` | Output database base name |
+| `-ia3m <dir>` | Directory with A3M alignment files |
+| `-ihhm <dir>` | Directory with HHM profile files |
+| `-ics <dir>` | Directory with CS219 files |
+| `--threads <n>` | Number of threads for HMM calculation |
+
+#### What It Does
+
+<Steps>
+  <Step title="Collect Input Files">
+    Scans specified directories for A3M, HHM, and CS219 files
+  </Step>
+  
+  <Step title="Build FFindex">
+    Creates FFindex databases for efficient random access
+  </Step>
+  
+  <Step title="Generate Missing Profiles">
+    Calls `hhmake` to generate HMM profiles from A3M files if not provided
+  </Step>
+  
+  <Step title="Optimize Databases">
+    Reorganizes FFindex databases for optimal sequential access
+  </Step>
+</Steps>
+
+### createdb.sh
+
+Simplified wrapper for database creation.
+
+```bash
+creatdb.sh -i input_dir/ -o database_name
+```
+
+## Sequence Processing
+
+### splitfasta.pl
+
+Split FASTA file into individual sequence files.
+
+```bash
+splitfasta.pl input.fasta output_dir/
+```
+
+### pdbfilter.pl / pdbfilter.py
+
+Filter protein sequences by length, composition, or other criteria.
+
+```bash
+pdbfilter.pl input.fasta output.fasta --min-length 50 --max-length 500
+```
+
+```bash
+pdbfilter.py input.fasta output.fasta --min-length 50
+```
+
+## PDB Processing
+
+### pdb2fasta.pl
+
+Convert PDB structure files to FASTA sequences.
+
+```bash
+pdb2fasta.pl input.pdb > output.fasta
+```
+
+Extracts sequence information from PDB coordinate files, handling:
+- Multiple chains
+- Modified residues
+- Missing residues
+
+### cif2fasta.py
+
+Convert mmCIF format structure files to FASTA.
+
+```bash
+cif2fasta.py input.cif > output.fasta
+```
+
+Supports the modern mmCIF format used by the PDB.
+
+### renumberpdb.pl
+
+Renumber residues in PDB files.
+
+```bash
+renumberpdb.pl input.pdb output.pdb
+```
+
+## Secondary Structure
+
+### addss.pl
+
+Add secondary structure prediction to alignments.
+
+```bash
+addss.pl input.a3m output.a3m
+```
+
+Integrates with external secondary structure prediction tools (PSIPRED, DSSP) and adds `>ss_pred` and `>ss_conf` lines to A3M alignments.
+
+<Warning>
+Requires PSIPRED or DSSP to be installed and in your PATH.
+</Warning>
+
+## HMM Profile Tools
+
+### create_profile_from_hhm.pl
+
+Convert HHM profiles to other formats.
+
+```bash
+create_profile_from_hhm.pl input.hhm output.prf
+```
+
+### create_profile_from_hmmer.pl
+
+Convert HMMER profiles to HH-suite format.
+
+```bash
+create_profile_from_hmmer.pl input.hmm output.hhm
+```
+
+## Model Building
+
+### hhmakemodel.pl / hhmakemodel.py
+
+Build 3D models from HH-suite alignments.
+
+```bash
+hhmakemodel.py -i alignment.hhr -ts template.pdb -o model.pdb
+```
+
+<Accordion title="Model Building Workflow">
+  1. Takes HHsearch/HHblits results (HHR file)
+  2. Reads template structure
+  3. Maps query sequence to template using alignment
+  4. Builds model by copying coordinates
+  5. Handles insertions and deletions
+</Accordion>
+
+## Alignment Processing
+
+### mergeali.pl
+
+Merge multiple alignments into a single alignment.
+
+```bash
+mergeali.pl alignment1.a3m alignment2.a3m > merged.a3m
+```
+
+### multithread.pl
+
+Run HH-suite searches in parallel.
+
+```bash
+multithread.pl queries.fasta database 8 hhblits
+```
+
+Parameters:
+1. Query file
+2. Database name
+3. Number of threads
+4. Search program (hhblits/hhsearch)
+
+## Python Modules
+
+### a3m.py
+
+Python module for A3M format handling (see [A3M Tools](/tools/a3m-tools) for details).
+
+```python
+import a3m
+
+container = a3m.A3M_Container()
+with open('input.a3m') as f:
+    container.read_a3m(f)
+```
+
+### hh_reader.py
+
+Python module for reading HH-suite result files.
+
+```python
+import hh_reader
+
+results = hh_reader.read_result('output.hhr')
+for hit in results:
+    print(f"{hit.name}: {hit.probability}")
+```
+
+### ffindex.py
+
+Python interface to FFindex databases.
+
+```python
+import ffindex
+
+entries = ffindex.read_index('database.ffindex')
+data = ffindex.read_data('database.ffdata')
+
+for entry in entries:
+    content = ffindex.read_entry(entry, data)
+```
+
+## FFindex Utilities
+
+While not included in the scripts directory, HH-suite uses the FFindex library for database management:
+
+- `ffindex_build` - Create FFindex database from files
+- `ffindex_get` - Extract entry from database
+- `ffindex_modify` - Modify database entries
+- `ffindex_unpack` - Extract all entries to files
+
+```bash
+# Build database
+ffindex_build -s database.ffdata database.ffindex input_dir/
+
+# Extract entry
+ffindex_get database.ffdata database.ffindex query_name
+```
+
+## HHPaths.pm
+
+Perl module providing path configuration for HH-suite.
+
+```perl
+use HHPaths;
+
+my $hhlib = $HHPaths::hhlib;    # HH-suite library path
+my $hhbin = $HHPaths::hhbin;    # HH-suite binary path
+my $hhscripts = $HHPaths::hhscripts;  # Scripts path
+```
+
+## Align.pm
+
+Perl module for alignment manipulation.
+
+```perl
+use Align;
+
+my $ali = Align::read_a3m("input.a3m");
+Align::remove_inserts($ali);
+Align::write_fasta($ali, "output.fasta");
+```
+
+## Validation Scripts
+
+### check_a3m.py
+
+Validate A3M format files.
+
+```bash
+check_a3m.py input.a3m
+```
+
+Checks for:
+- Valid amino acid characters
+- Consistent match state counts
+- Proper consensus sequence
+- Valid secondary structure annotations
+
+### get_a3m_size.py
+
+Report statistics about A3M files.
+
+```bash
+get_a3m_size.py input.a3m
+```
+
+Outputs:
+- Number of sequences
+- Number of match states
+- Average sequence length
+
+## Best Practices
+
+<Tip>
+**Script Locations**: Make sure the scripts directory is in your PATH:
+```bash
+export PATH="/path/to/hhsuite/scripts:$PATH"
+```
+</Tip>
+
+<Accordion title="Common Workflows">
+  1. **Format Conversion Pipeline**
+     ```bash
+     reformat.pl fas a3m input.fasta temp.a3m
+     addss.pl temp.a3m output.a3m
+     hhmake -i output.a3m -o output.hhm
+     ```
+
+  2. **Database Building Pipeline**
+     ```bash
+     # Convert sequences to A3M
+     for f in *.fasta; do
+         reformat.pl fas a3m $f ${f%.fasta}.a3m
+     done
+     
+     # Build database
+     hhsuitedb.py -ia3m . -o my_database
+     ```
+
+  3. **Batch Structure Conversion**
+     ```bash
+     for pdb in structures/*.pdb; do
+         pdb2fasta.pl $pdb > sequences/$(basename $pdb .pdb).fasta
+     done
+     ```
+</Accordion>
+
+## See Also
+
+- [A3M Tools](/tools/a3m-tools) - Specialized A3M utilities
+- [cstranslate](/tools/cstranslate) - Abstract state translation
+- [File Formats](/guides/file-formats) - Format specifications
+- [Building Custom Databases](/guides/building-custom-databases)

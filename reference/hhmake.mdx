@@ -1,0 +1,175 @@
+---
+title: 'hhmake'
+description: 'Build an HMM from an input alignment'
+---
+
+## Synopsis
+
+```bash
+hhmake -i <file> -o <file> [options]
+```
+
+## Description
+
+HHmake builds an HMM from an input alignment in A2M, A3M, or FASTA format, or converts between HMMER format (.hmm) and HHsearch format (.hhm).
+
+## Required Parameters
+
+<ParamField path="-i" type="file" required>
+  Query alignment (A2M, A3M, or FASTA), or query HMM
+</ParamField>
+
+## Output Options
+
+<ParamField path="-o" type="file">
+  HMM file to be written to (default: &lt;infile.hhm&gt;)
+</ParamField>
+
+<ParamField path="-a" type="file">
+  HMM file to be appended to
+</ParamField>
+
+<ParamField path="-v" type="integer" default="2">
+  Verbose mode:
+  - `0`: no screen output
+  - `1`: only warnings
+  - `2`: verbose
+</ParamField>
+
+<ParamField path="-seq" type="integer" default="10">
+  Max. number of query/template sequences displayed. Beware of overflows! All these sequences are stored in memory.
+</ParamField>
+
+<ParamField path="-add_cons" type="flag">
+  Make consensus sequence master sequence of query MSA
+</ParamField>
+
+<ParamField path="-name" type="string">
+  Use this name for HMM (default: use name of first sequence)
+</ParamField>
+
+## Filter Query Multiple Sequence Alignment
+
+<ParamField path="-id" type="integer" default="90">
+  Maximum pairwise sequence identity (%) (range: 0-100)
+</ParamField>
+
+<ParamField path="-diff" type="integer" default="100">
+  Filter MSA by selecting most diverse set of sequences, keeping at least this many seqs in each MSA block of length 50
+</ParamField>
+
+<ParamField path="-cov" type="integer" default="0">
+  Minimum coverage with query (%) (range: 0-100)
+</ParamField>
+
+<ParamField path="-qid" type="integer" default="0">
+  Minimum sequence identity with query (%) (range: 0-100)
+</ParamField>
+
+<ParamField path="-qsc" type="float" default="-20.0">
+  Minimum score per column with query
+</ParamField>
+
+<ParamField path="-neff" type="float">
+  Target diversity of alignment (default: off, range: 1-inf)
+</ParamField>
+
+## Input Alignment Format
+
+<ParamField path="-M" type="string" default="a2m">
+  Input alignment format:
+  - `a2m` or `a3m`: upper case = Match; lower case = Insert; '-' = Delete; '.' = gaps aligned to inserts
+  - `first`: FASTA format where columns with residue in 1st sequence are match states
+  - `[0-100]`: FASTA format where columns with fewer than X% gaps are match states
+</ParamField>
+
+## Pseudocount Options
+
+### Context-specific HHM pseudocounts
+
+<ParamField path="-pc_hhm_contxt_mode" type="integer" default="0">
+  Position dependence of pc admixture 'tau' (pc mode):
+  - `0`: no pseudo counts: tau = 0
+  - `1`: constant: tau = a
+  - `2`: diversity-dependent: tau = a/(1+((Neff[i]-1)/b)^c)
+  - `3`: CSBlast admixture: tau = a(1+b)/(Neff[i]+b)
+</ParamField>
+
+<ParamField path="-pc_hhm_contxt_a" type="float" default="0.9">
+  Overall pseudocount admixture (range: 0-1)
+</ParamField>
+
+<ParamField path="-pc_hhm_contxt_b" type="float" default="4.0">
+  Neff threshold value for mode 2 (range: 1-inf)
+</ParamField>
+
+<ParamField path="-pc_hhm_contxt_c" type="float" default="1.0">
+  Extinction exponent c for mode 2 (range: 0-3)
+</ParamField>
+
+### Context-independent HHM pseudocounts
+
+<ParamField path="-pc_hhm_nocontxt_mode" type="integer" default="2">
+  Position dependence of pc admixture 'tau' (used for templates; used for query if contxt file is not available)
+</ParamField>
+
+<ParamField path="-pc_hhm_nocontxt_a" type="float" default="1.0">
+  Overall pseudocount admixture (range: 0-1)
+</ParamField>
+
+<ParamField path="-pc_hhm_nocontxt_b" type="float" default="1.5">
+  Neff threshold value for mode 2 (range: 1-inf)
+</ParamField>
+
+<ParamField path="-pc_hhm_nocontxt_c" type="float" default="1.0">
+  Extinction exponent c for mode 2 (range: 0-3)
+</ParamField>
+
+### Context-specific pseudocounts
+
+<ParamField path="-nocontxt" type="flag">
+  Use substitution-matrix instead of context-specific pseudocounts
+</ParamField>
+
+<ParamField path="-contxt" type="file">
+  Context file for computing context-specific pseudocounts
+</ParamField>
+
+## Other Options
+
+<ParamField path="-maxseq" type="integer" default="65535">
+  Max number of input rows
+</ParamField>
+
+<ParamField path="-maxres" type="integer" default="20000">
+  Max number of HMM columns
+</ParamField>
+
+## Examples
+
+### Build HMM from alignment
+
+```bash
+hhmake -i test.a3m -o stdout
+```
+
+### Build HMM with custom name
+
+```bash
+hhmake -i alignment.a3m -o model.hhm -name MyProtein
+```
+
+## Exit Codes
+
+- `0`: Success
+- `1`: File format error
+- `2`: File access error
+- `3`: Memory error
+- `4`: Command line error
+
+## See Also
+
+- [hhblits](/reference/hhblits) - Iterative sequence search
+- [hhsearch](/reference/hhsearch) - Search a database of HMMs
+- [A3M Format](/reference/formats/a3m) - Input alignment format
+- [HHM Format](/reference/formats/hhm) - HMM file format

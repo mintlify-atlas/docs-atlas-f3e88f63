@@ -1,0 +1,309 @@
+---
+title: HHmake
+description: Build HMM profiles from multiple sequence alignments
+---
+
+HHmake converts a multiple sequence alignment (MSA) into a Hidden Markov Model (HMM) profile in HH-suite format. It's an essential preprocessing tool for preparing custom HMM databases or converting between different HMM formats.
+
+## Overview
+
+HHmake reads an alignment in A2M, A3M, or FASTA format and generates an HMM file (.hhm) that can be used with other HH-suite tools. It can also convert between HMMER format (.hmm) and HHsearch format (.hhm).
+
+### Key Features
+
+- **MSA to HMM conversion**: Build HMM profiles from alignments
+- **Format conversion**: Convert between HMMER and HHsearch formats
+- **Filtering**: Apply sequence filters during HMM construction
+- **Pseudocounts**: Add context-specific or independent pseudocounts
+
+## When to Use HHmake
+
+Use HHmake when you need to:
+
+- **Build custom HMM databases**: Convert alignments to searchable HMMs
+- **Preprocess alignments**: Generate HMMs for use with hhsearch or hhalign
+- **Convert HMM formats**: Transform HMMER HMMs to HH-suite format
+- **Control HMM building**: Fine-tune pseudocounts and filtering parameters
+
+<Note>
+Most users won't need HHmake directly, as tools like hhblits and hhsearch build HMMs automatically. Use HHmake when you need custom HMM databases or format conversion.
+</Note>
+
+## Basic Usage
+
+<Steps>
+  <Step title="Convert alignment to HMM">
+    Basic conversion from A3M to HHM format:
+    
+    ```bash
+    hhmake -i alignment.a3m -o alignment.hhm
+    ```
+  </Step>
+
+  <Step title="Build HMM and apply filters">
+    Filter sequences during HMM construction:
+    
+    ```bash
+    hhmake -i alignment.a3m -o alignment.hhm -id 90 -cov 50
+    ```
+  </Step>
+
+  <Step title="Read from stdin, write to stdout">
+    Use in pipelines:
+    
+    ```bash
+    cat alignment.a3m | hhmake -i stdin -o stdout > alignment.hhm
+    ```
+  </Step>
+</Steps>
+
+## Common Use Cases
+
+### Build HMM from FASTA Alignment
+
+Convert a FASTA multiple sequence alignment:
+
+```bash
+hhmake -i sequences.fas -o sequences.hhm
+```
+
+### Create Filtered HMM
+
+Build HMM while filtering redundant sequences:
+
+```bash
+hhmake -i alignment.a3m -o filtered.hhm \
+  -id 90 \      # Max 90% pairwise identity
+  -cov 75 \     # Min 75% coverage with master
+  -qid 30       # Min 30% identity with master
+```
+
+### Build HMM Database
+
+Create multiple HMMs for a database:
+
+```bash
+for file in *.a3m; do
+  hhmake -i "$file" -o "${file%.a3m}.hhm"
+done
+```
+
+### Add Consensus Sequence
+
+Include consensus as master sequence:
+
+```bash
+hhmake -i alignment.a3m -o alignment.hhm -add_cons
+```
+
+## Key Parameters
+
+<AccordionGroup>
+  <Accordion title="Input/Output Options">
+    - `-i <file>` - Query alignment (A2M, A3M, FASTA) or HMM file
+    - `-o <file>` - HMM output file (default: `<infile>.hhm`)
+    - `-a <file>` - Append to existing HMM file instead of overwriting
+    - `-name <name>` - Use this name for HMM (default: first sequence name)
+    - `-v <int>` - Verbose mode (0=no output, 1=warnings, 2=verbose)
+  </Accordion>
+
+  <Accordion title="Filtering Options">
+    - `-id [0,100]` - Maximum pairwise sequence identity % (default: 90)
+    - `-diff [0,inf]` - Filter for diversity, keeping Ndiff sequences per 50-column block (default: 100)
+    - `-cov [0,100]` - Minimum coverage with query % (default: 0)
+    - `-qid [0,100]` - Minimum sequence identity with query % (default: 0)
+    - `-qsc [-inf,100]` - Minimum score per column with query (default: -20.0)
+    - `-neff [1,inf]` - Target diversity (effective number of sequences)
+  </Accordion>
+
+  <Accordion title="Input Format Options">
+    - `-M a2m` - Use A2M/A3M format (default)
+    - `-M first` - Use FASTA format, columns with residue in 1st sequence are match states
+    - `-M [0,100]` - Use FASTA format, columns with &lt;X% gaps are match states
+  </Accordion>
+
+  <Accordion title="Advanced Options">
+    - `-add_cons` - Generate consensus sequence as master sequence
+    - `-seq <int>` - Maximum number of sequences to display in HMM (default: 10)
+    - `-maxseq <int>` - Maximum number of input sequences (default: 65535)
+    - `-maxres <int>` - Maximum number of HMM columns (default: 20000)
+  </Accordion>
+</AccordionGroup>
+
+## Output Format
+
+The HHM file is a text-based format containing:
+
+<CodeGroup>
+```text HHM Header
+HHsearch 1.5
+NAME  protein_name
+FAM   protein_family  
+FILE  alignment.a3m
+LENG  250 match states, 500 columns in alignment
+FILT  150 out of 200 sequences passed filter
+NEFF  8.5
+```
+
+```text HHM Match States
+NULL   3706  5728  4211  4064  4839  3729  4763  4308  4069  3323  5509
+       4640  4464  4937  4285  4423  3815  3783  6325  4665  4573  0
+HMM    A     C     D     E     F     G     H     I     K     L     M
+       N     P     Q     R     S     T     V     W     Y
+       M->M  M->I  M->D  I->M  I->I  D->M  D->D  Neff  Neff_I Neff_D
+       1     2     3     4     5     6     7     8     9     10
+```
+</CodeGroup>
+
+<Note>
+The HHM format stores:
+- Emission probabilities for each match state
+- Transition probabilities between states
+- Effective number of sequences (Neff) per column
+- Secondary structure predictions (if available)
+</Note>
+
+## Tips and Best Practices
+
+<Tip>
+**Filtering redundancy**: Use `-id 90` to remove very similar sequences. This speeds up searches while maintaining sensitivity.
+</Tip>
+
+<Warning>
+Overly aggressive filtering (e.g., `-id 50 -cov 90`) can remove too many sequences and reduce the profile quality. Balance diversity with information content.
+</Warning>
+
+<Tip>
+**Match state assignment**:
+- Use `-M a2m` (default) when your alignment already has match/insert states defined
+- Use `-M first` to make the first sequence define match states
+- Use `-M 50` to make columns with &lt;50% gaps be match states
+</Tip>
+
+## Advanced Options
+
+### Context-Specific Pseudocounts
+
+Enable context-specific pseudocounts for better HMMs:
+
+```bash
+hhmake -i alignment.a3m -o alignment.hhm \
+  -pc_hhm_contxt_mode 2 \  # Diversity-dependent mode
+  -pc_hhm_contxt_a 0.9 \   # Overall admixture (0-1)
+  -pc_hhm_contxt_b 4.0 \   # Neff threshold
+  -pc_hhm_contxt_c 1.0     # Extinction exponent
+```
+
+### No Pseudocounts (for raw counts)
+
+Build HMM without any pseudocounts:
+
+```bash
+hhmake -i alignment.a3m -o raw.hhm \
+  -pc_hhm_contxt_mode 0 \  # No pseudocounts
+  -nocontxt                # Disable context-specific pseudocounts
+```
+
+### Custom Sequence Weighting
+
+Control how sequences are weighted in the profile:
+
+```bash
+hhmake -i alignment.a3m -o alignment.hhm -wg
+```
+
+This uses global sequence weighting instead of local weighting.
+
+### Build Database from Directory
+
+Process all alignments in a directory:
+
+```bash
+#!/bin/bash
+for ali in alignments/*.a3m; do
+  base=$(basename "$ali" .a3m)
+  hhmake -i "$ali" -o "hmms/${base}.hhm" -id 90 -cov 50
+done
+
+# Create database index
+ffindex_build -s hmms.ffdata hmms.ffindex hmms/
+```
+
+## Format Conversion
+
+### HMMER to HH-suite Format
+
+Convert HMMER3 HMM to HH-suite format:
+
+```bash
+hhmake -i hmmer_profile.hmm -o hhsuite_profile.hhm
+```
+
+### A3M to A2M Format
+
+While HHmake primarily creates HMMs, you can use it in a pipeline:
+
+```bash
+# Generate HMM then use with other tools
+hhmake -i alignment.a3m -o temp.hhm
+hhsearch -i temp.hhm -d database -o results.hhr
+```
+
+## Understanding Match State Assignment
+
+The `-M` parameter controls how columns are designated as match vs. insert states:
+
+<CodeGroup>
+```text -M a2m (Default)
+Input:  MSTPQRLLAGAIDSFSLTESDKPTYRlvgpsgcsGKTTLLNAIAG
+        Upper = Match, lower = Insert
+Result: Match states at uppercase positions
+```
+
+```text -M first
+Input:  M-TVKG-RILLAGA-IDSFSLTESDK--PTYRLVGPSG
+        First sequence defines match states
+Result: Match states where first sequence has residues
+```
+
+```text -M 50
+Input:  Multiple sequences
+Result: Match states in columns with <50% gaps
+```
+</CodeGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Too few sequences in HMM">
+    If filtering removes too many sequences:
+    - Relax `-id` threshold (increase value)
+    - Lower `-cov` and `-qid` requirements
+    - Check input alignment quality
+  </Accordion>
+
+  <Accordion title="HMM too large">
+    If you hit the maximum HMM size:
+    - Use `-maxres` to increase the limit
+    - Check if your alignment has excessive columns
+    - Consider trimming the alignment first
+  </Accordion>
+
+  <Accordion title="Poor HMM quality">
+    If the resulting HMM performs poorly:
+    - Ensure input alignment is high quality
+    - Try context-specific pseudocounts
+    - Adjust filtering to keep more diverse sequences
+  </Accordion>
+</AccordionGroup>
+
+## Related Tools
+
+- [**hhfilter**](/tools/hhfilter) - Filter alignments before building HMMs
+- [**hhconsensus**](/tools/hhconsensus) - Generate consensus sequences
+- [**hhsearch**](/tools/hhsearch) - Search with generated HMMs
+- [**hhalign**](/tools/hhalign) - Align using generated HMMs
+
+## References
+
+Steinegger M, Meier M, Mirdita M, Vöhringer H, Haunsberger SJ, Söding J (2019). HH-suite3 for fast remote homology detection and deep protein annotation. *BMC Bioinformatics*, 473. [doi: 10.1186/s12859-019-3019-7](https://doi.org/10.1186/s12859-019-3019-7)

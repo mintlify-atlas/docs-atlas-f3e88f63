@@ -1,0 +1,227 @@
+---
+title: 'HHR Format'
+description: 'HH-suite results output format'
+---
+
+## Overview
+
+HHR (HH-suite Results) is the standard output format for hhblits, hhsearch, and hhalign. It contains search statistics, hit lists, and detailed pairwise alignments.
+
+## Format Specification
+
+### Header Section
+
+Query information and search parameters:
+
+```
+Query         sp|Q5VUD6|FA69B_HUMAN Protein FAM69B OS=Homo sapiens GN=FAM69B PE=2 SV=3
+Match_columns 431
+No_of_seqs    1 out of 1
+Neff          1.0 
+Searched_HMMs 1000
+Date          Fri Jul 26 12:18:42 2013
+Command       ./hhblits -i ../data/query.seq -d /home/meiermark/databases/uniprot20_2013_03/uniprot20_2013_03 -cpu 4 -n 1
+```
+
+### Header Fields
+
+- **Query**: Query sequence identifier and description
+- **Match_columns**: Number of match states in query HMM
+- **No_of_seqs**: Number of sequences in query alignment
+- **Neff**: Effective number of sequences (diversity measure)
+- **Searched_HMMs**: Number of database HMMs searched
+- **Date**: Search timestamp
+- **Command**: Full command line used
+
+### Summary Hit List
+
+Tabular list of significant hits:
+
+```
+ No Hit                             Prob E-value P-value  Score    SS Cols Query HMM  Template HMM
+  1 UP20|TITVEVABA|104|471 Protein 100.0  4E-171  3E-176 1228.9   0.0  413   19-431    58-470 (471)
+  2 UP20|REZTOXABA|10|392 LOC10003 100.0  1E-142  1E-147 1017.2   0.0  366   66-431    27-392 (392)
+  3 UP20|DUSGUVABA|1|331 Uncharact 100.0 6.2E-67 3.8E-72  487.7   0.0  314   19-332    16-329 (331)
+```
+
+### Summary Columns
+
+1. **No**: Rank number
+2. **Hit**: Target identifier and description
+3. **Prob**: Probability of true positive (0-100%)
+4. **E-value**: Expected number of false positives with this score
+5. **P-value**: Probability of false positive
+6. **Score**: Raw alignment score
+7. **SS**: Secondary structure score contribution
+8. **Cols**: Number of aligned columns
+9. **Query HMM**: Query range (start-end)
+10. **Template HMM**: Template range (start-end, total length)
+
+### Detailed Alignments
+
+For each significant hit, a detailed alignment is provided:
+
+```
+No 1
+>UP20|TITVEVABA|104|471 Protein FAM69B OS=Homo sapiens GN=FAM69B PE=2 SV=3
+Probab=100.00  E-value=4e-171  Score=1228.89  Aligned_cols=413  Identities=100%  Similarity=2.485  Sum_probs=405.8  Template_Neff=1.000
+
+Q sp|Q5VUD6|FA69    19 RLQGRLPGLRVRCIFLAWLGVFAGSWLVYVHYSSYSERCRGHVCQVVICDQYRKGIISGSVCQDLCELHMVEWRTCLSVAPG  98
+Q Consensus        19 rlqgrlpglrvrciflawlgvfagswlvyvhyssysercrghvcqvvicdqyrkgiisgsvcqdlcelhmvewrtclsvapg  98
+                      ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+T Consensus        58 RLQGRLPGLRVRCIFLAWLGVFAGSWLVYVHYSSYSERCRGHVCQVVICDQYRKGIISGSVCQDLCELHMVEWRTCLSVAPG 137
+T UP20|TITVEVABA   58 RLQGRLPGLRVRCIFLAWLGVFAGSWLVYVHYSSYSERCRGHVCQVVICDQYRKGIISGSVCQDLCELHMVEWRTCLSVAPG 137
+```
+
+### Alignment Header
+
+- **Probab**: Probability that hit is a true positive (0-100%)
+- **E-value**: Expected number of false positives
+- **Score**: Raw alignment score (bits)
+- **Aligned_cols**: Number of aligned columns
+- **Identities**: Percent sequence identity
+- **Similarity**: Average similarity score
+- **Sum_probs**: Sum of posterior probabilities
+- **Template_Neff**: Diversity of template MSA
+
+### Alignment Block
+
+Four-line format:
+
+1. **Q**: Query sequence with position range
+2. **Q Consensus**: Query consensus sequence
+3. **Match line**: Shows conservation (|=identical, +=similar, .=weakly similar, space=different)
+4. **T Consensus**: Template consensus sequence
+5. **T**: Template sequence with position range
+
+Optional additional lines:
+- **Q ss_pred**: Query secondary structure prediction
+- **T ss_pred**: Template secondary structure prediction
+- **Q ss_dssp**: Query DSSP secondary structure
+- **T ss_dssp**: Template DSSP secondary structure
+- **Confidence**: Alignment confidence scores
+
+## Example Full Output
+
+```
+Query         sp|Q5VUD6|FA69B_HUMAN Protein FAM69B
+Match_columns 431
+No_of_seqs    149 out of 270
+Neff          5.2
+Searched_HMMs 10000
+Date          Wed Jan  4 15:14:55 2012
+Command       hhblits -i query.a3m -d database -n 2
+
+ No Hit                             Prob E-value P-value  Score    SS Cols Query HMM  Template HMM
+  1 PROTEIN_A                       99.9 1.2E-35 8.5E-41  245.6   0.0  210   15-225    10-220 (450)
+  2 PROTEIN_B                       95.3 0.00012 8.3E-09  125.4   0.0  180   50-230    25-205 (380)
+
+No 1
+>PROTEIN_A Full description here
+Probab=99.90  E-value=1.2e-35  Score=245.60  Aligned_cols=210  Identities=45%  Similarity=1.234
+
+Q sp|Q5VUD6|FA69    15 MRRLRRLAHLVLFCPFSKRLQGRLPGLRVRCIFLAWLGVFAGSWLVYVHYSSYSERCRGH  74
+Q Consensus        15 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~gh  74
+Q ss_pred             CCCCCCCHHHHHHHHHHHHHHHHCCCEEEEEEEEECCCCEEEEEEEECCCCCCCCCCCC
+                      ||||||||||| |||||||||| ||||||||||||||||||||||||||||||||||
+T Consensus        10 MRRLRRLAHLVIFCPFSKRLQGRLPGLRVRCIFLAWLGVFAGSWLVYVHYSSYSERCRGH  69
+T PROTEIN_A        10 MRRLRRLAHLVIFCPFSKRLQGRLPGLRVRCIFLAWLGVFAGSWLVYVHYSSYSERCRGH  69
+T ss_pred             CCCCCCCHHHHHHHHHHHHHHHHCCCEEEEEEEEECCCCEEEEEEEECCCCCCCCCCCC
+Confidence            99999999999999999999999999999999999999999999999999999999999
+```
+
+## Score Interpretation
+
+### Probability
+
+- **&gt;95%**: Very confident hit, likely homologous
+- **50-95%**: Possible homolog, requires validation
+- **&lt;50%**: Low confidence, possibly spurious
+
+### E-value
+
+- **&lt;0.001**: Highly significant
+- **0.001-0.1**: Significant
+- **0.1-1**: Marginally significant
+- **&gt;1**: Not significant
+
+### Score
+
+- Depends on alignment length
+- Higher is better
+- Compare similar-length alignments
+
+## Parsing HHR Files
+
+### Extract Hit List
+
+```bash
+# Get top 10 hits
+grep "^\s*[0-9]" results.hhr | head -10
+```
+
+### Extract E-values
+
+```bash
+# Get E-values for all hits
+grep "E-value=" results.hhr
+```
+
+### Extract Alignments
+
+```bash
+# Get alignment for hit No 1
+sed -n '/^No 1$/,/^No 2$/p' results.hhr
+```
+
+## Customizing Output
+
+### Controlling Number of Hits
+
+```bash
+# Show top 100 hits
+hhsearch -i query.a3m -d database -Z 100 -B 100
+
+# Show minimum 20 hits
+hhsearch -i query.a3m -d database -z 20 -b 20
+```
+
+### E-value Threshold
+
+```bash
+# Only show hits with E-value < 0.01
+hhsearch -i query.a3m -d database -E 0.01
+```
+
+### Probability Threshold
+
+```bash
+# Only show hits with probability > 90%
+hhsearch -i query.a3m -d database -p 90
+```
+
+## Alternative Output Formats
+
+### BLAST Tabular Format
+
+```bash
+hhblits -i query.a3m -d database -blasttab output.m8
+```
+
+Columns: query, target, #match/tLen, #mismatch, #gapOpen, qstart, qend, tstart, tend, eval, score
+
+### A3M Alignment
+
+```bash
+hhblits -i query.a3m -d database -oa3m result.a3m
+```
+
+Merged alignment of significant hits in A3M format.
+
+## See Also
+
+- [hhblits](/reference/hhblits) - Iterative sequence search
+- [hhsearch](/reference/hhsearch) - Database search
+- [hhalign](/reference/hhalign) - Pairwise alignment
+- [A3M Format](/reference/formats/a3m) - Alignment format
+- [HHM Format](/reference/formats/hhm) - HMM format

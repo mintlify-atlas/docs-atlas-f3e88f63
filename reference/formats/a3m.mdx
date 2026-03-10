@@ -1,0 +1,116 @@
+---
+title: 'A3M Format'
+description: 'Multiple sequence alignment format used by HH-suite'
+---
+
+## Overview
+
+A3M is the primary alignment format used by HH-suite tools. It is similar to A2M format but with a more compact representation of insertions and deletions.
+
+## Format Specification
+
+### Character Encoding
+
+- **Upper case letters (A-Z)**: Match states (aligned columns)
+- **Lower case letters (a-z)**: Insert states (insertions relative to match states)
+- **Dash (-)**: Deletion in the match state
+- **Dot (.)**: Gap aligned to an insert state (optional, may be omitted)
+
+### File Structure
+
+An A3M file consists of:
+
+1. **Header lines**: Begin with `>` followed by sequence identifier and description
+2. **Sequence lines**: Aligned sequences using the character encoding above
+
+## Example
+
+```
+>sp|Q5VUD6|FA69B_HUMAN Protein FAM69B OS=Homo sapiens GN=FAM69B PE=2 SV=3
+MRRLRRLAHLVLFCPFSKRLQGRLPGLRVRCIFLAWLGVFAGSWLVYVHYSSYSERCRGHVCQVVICDQYRKGIISGSVCQDLCELHMVEWRTCLSVAPG
+QQVYSGLWRDKDVTIKCGIEETLDSKARSDAAPRRELVLFDKPTRGTSIKEFREMTLSFLKANLGDLPSLPALVGQVLLMADFNKDNRVSLAEAKSVWAL
+LQRNEFLLLLSLQEKEHASRLLGYCGDLYLTEGVPHGAWHAAALPPLLRPLLPPALQGALQQWLGPAWPWRAKIAIGLLEFVEELFHGSYGTFYMCETTL
+ANVGYTATYDFKMADLQQVAPEATVRRFLQGRRCEHSTDCTYGRDCRAPCDRLMRQCKGDLIQPNLAKVCALLRGYLLPGAPADLREELGTQLRTCTTLS
+GLASQVEAHHSLVLSHLKTLLWKKISNTKYS
+>tr|Q4S137|Q4S137_TETNG Chromosome 1 SCAF14770, whole genome shotgun sequence OS=Tetraodon nigroviridis GN=GSTENG00025741001 PE=4 SV=1
+------------------YvqrkesgiegplgsratdgraggLDARFSYLHMKYLFLSWLAVFVGSWVVYVEYSSYTELCRGRECKNSIvssfiflirlfqrrglpvahllsvlskCDKYRRGLIDGSACSSLCEKGTLSLGTCFSARAKSQVYTGSWGDLEGVIKCRMEEAQRYDLENQ-------------------------------SKVGDQANLADLAAQVLSMTDANKDGHISLPEAHSTWALLQLNEFLLALVLQDREHTPKLLGFCGDLYVTEKVPYSPLYGVGLPWILEVWIPASLRHSMDQWFTPSWPFKAKISIGLLELVEDVFHGTFGSFLMCDVSAGSFGYNDRHDLKVTDARYIVPEAVFQEDIRQQRCDDDRDCRFGADCLTSCDLTKHRCTTEVTRPNLAKACETMKNYVLRGAPPDVREELEKQLYACMALKGSAEQMEMEHSLILNNLKTLLWKRISHTKDS
+```
+
+## Key Features
+
+### Match vs Insert States
+
+The distinction between match states (upper case) and insert states (lower case) is crucial:
+
+- **Match states**: Form the consensus structure of the alignment
+- **Insert states**: Represent insertions that are not part of the core alignment
+
+### Gaps
+
+- Deletions in match states are represented by `-`
+- Gaps aligned to insert states can be represented by `.` but are often omitted for compactness
+
+## Conversion from FASTA
+
+When converting from FASTA format, you can specify how match states are assigned:
+
+```bash
+# Using -M a3m: Upper/lower case in input determines match/insert
+hhblits -i input.a3m -d database
+
+# Using -M first: First sequence determines match columns
+hhblits -i input.fasta -M first -d database
+
+# Using -M [0-100]: Columns with <X% gaps are match states
+hhblits -i input.fasta -M 50 -d database
+```
+
+## Tools that Use A3M
+
+A3M format is used by:
+
+- **hhblits**: For input queries and output MSAs
+- **hhsearch**: For input queries
+- **hhalign**: For input alignments
+- **hhmake**: For building HMMs
+- **hhfilter**: For filtering alignments
+- **hhconsensus**: For consensus calculation
+
+## Best Practices
+
+### Header Lines
+
+- Include informative sequence identifiers
+- Add organism and gene information when available
+- Use standard format: `>identifier description`
+
+### Sequence Quality
+
+- Ensure proper upper/lower case for match/insert states
+- Remove sequences with too many gaps using hhfilter
+- Filter redundant sequences to improve diversity
+
+### File Size
+
+A3M files can be large. To reduce size:
+
+- Filter sequences by identity: `hhfilter -id 90`
+- Remove low-coverage sequences: `hhfilter -cov 50`
+- Select diverse sequences: `hhfilter -diff 1000`
+
+## Comparison with A2M
+
+Key differences:
+
+| Feature | A2M | A3M |
+|---------|-----|-----|
+| Insert gaps | Must use `.` | Can be omitted |
+| Compactness | Less compact | More compact |
+| Usage | Legacy format | Current standard |
+
+## See Also
+
+- [HHM Format](/reference/formats/hhm) - HMM file format
+- [HHR Format](/reference/formats/hhr) - Results output format
+- [hhfilter](/reference/hhfilter) - Filter alignments
+- [hhmake](/reference/hhmake) - Build HMMs from alignments

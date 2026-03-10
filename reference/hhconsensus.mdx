@@ -1,0 +1,118 @@
+---
+title: 'hhconsensus'
+description: 'Calculate the consensus sequence for an alignment'
+---
+
+## Synopsis
+
+```bash
+hhconsensus -i <file> [options]
+```
+
+## Description
+
+HHconsensus calculates the consensus sequence for an A3M/FASTA input file.
+
+## Required Parameters
+
+<ParamField path="-i" type="file" required>
+  Query alignment (A2M, A3M, or FASTA), or query HMM
+</ParamField>
+
+## Output Options
+
+<ParamField path="-s" type="file">
+  Append consensus sequence in FASTA format (default: &lt;infile.seq&gt;)
+</ParamField>
+
+<ParamField path="-o" type="file">
+  Write alignment with consensus sequence in A3M format
+</ParamField>
+
+<ParamField path="-oa3m" type="file">
+  Write alignment with consensus sequence in A3M format (same as -o)
+</ParamField>
+
+<ParamField path="-oa2m" type="file">
+  Write alignment with consensus sequence in A2M format
+</ParamField>
+
+<ParamField path="-ofas" type="file">
+  Write alignment with consensus sequence in FASTA format
+</ParamField>
+
+<ParamField path="-v" type="integer" default="2">
+  Verbose mode:
+  - `0`: no screen output
+  - `1`: only warnings
+  - `2`: verbose
+</ParamField>
+
+## Filter Input Alignment
+
+<ParamField path="-id" type="integer" default="100">
+  Maximum pairwise sequence identity (%) (range: 0-100)
+</ParamField>
+
+<ParamField path="-diff" type="integer" default="0">
+  Filter most diverse set of sequences, keeping at least this many sequences in each block of >50 columns
+</ParamField>
+
+<ParamField path="-cov" type="integer" default="0">
+  Minimum coverage with query (%) (range: 0-100)
+</ParamField>
+
+<ParamField path="-qid" type="integer" default="0">
+  Minimum sequence identity with query (%) (range: 0-100)
+</ParamField>
+
+<ParamField path="-qsc" type="float" default="-20.0">
+  Minimum score per column with query
+</ParamField>
+
+## Input Alignment Format
+
+<ParamField path="-M" type="string" default="a2m">
+  Input alignment format:
+  - `a2m` or `a3m`: upper case = Match; lower case = Insert; '-' = Delete; '.' = gaps aligned to inserts
+  - `first`: FASTA format where columns with residue in 1st sequence are match states
+  - `[0-100]`: FASTA format where columns with fewer than X% gaps are match states
+</ParamField>
+
+## Other Options
+
+<ParamField path="-maxseq" type="integer" default="65535">
+  Max number of input rows
+</ParamField>
+
+<ParamField path="-maxres" type="integer" default="20000">
+  Max number of HMM columns
+</ParamField>
+
+## Examples
+
+### Generate consensus sequence
+
+```bash
+hhconsensus -i stdin -s stdout
+```
+
+### Create consensus with alignment output
+
+```bash
+hhconsensus -i alignment.a3m -s consensus.seq -oa3m output.a3m
+```
+
+## Exit Codes
+
+- `0`: Success
+- `1`: File format error
+- `2`: File access error
+- `3`: Memory error
+- `4`: Command line error
+
+## See Also
+
+- [hhmake](/reference/hhmake) - Build an HMM from an alignment
+- [hhfilter](/reference/hhfilter) - Filter alignment
+- [A3M Format](/reference/formats/a3m) - Alignment format

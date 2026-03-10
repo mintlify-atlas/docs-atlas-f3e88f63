@@ -1,0 +1,518 @@
+---
+title: 'Command-Line Parameters'
+description: 'Comprehensive guide to HH-suite parameters for controlling alignment, scoring, and output'
+icon: 'sliders'
+---
+
+## Overview
+
+HH-suite tools share many common parameters while also providing tool-specific options. This guide covers the most important parameters across `hhblits`, `hhsearch`, and `hhalign`.
+
+## Core Parameters
+
+### Input/Output
+
+<ParamField path="-i" type="string" required>
+  Input file containing query sequence or alignment in FASTA, A2M, or A3M format
+  
+  ```bash
+  hhblits -i query.fasta -d database -o results.hhr
+  ```
+</ParamField>
+
+<ParamField path="-o" type="string" required>
+  Output file for search results in HHR format
+  
+  ```bash
+  hhsearch -i query.a3m -d pdb70 -o output.hhr
+  ```
+</ParamField>
+
+<ParamField path="-d" type="string" required>
+  Database basename (without file extensions)
+  
+  ```bash
+  hhblits -i query.fas -d /data/uniclust30 -o results.hhr
+  ```
+</ParamField>
+
+### Alignment Output Formats
+
+<ParamField path="-oa3m" type="string">
+  Output alignment in A3M format (MSA with query)
+  
+  ```bash
+  hhblits -i query.fas -d database -oa3m result.a3m
+  ```
+</ParamField>
+
+<ParamField path="-opsi" type="string">
+  Output alignment in PSI-BLAST format
+</ParamField>
+
+<ParamField path="-ohhm" type="string">
+  Output HMM file
+</ParamField>
+
+<ParamField path="-blasttab" type="string">
+  Output in BLAST tab format (M8)
+</ParamField>
+
+<ParamField path="-atab" type="string">
+  Output alignment in tabular format with residue indices
+</ParamField>
+
+## Search Control
+
+### E-value and Probability Thresholds
+
+<CodeGroup>
+```bash E-value filtering
+# Include hits with E-value <= 0.001 in hit list
+hhsearch -i query.a3m -d pdb70 -E 0.001 -o results.hhr
+
+# Include hits with E-value <= 0.01 in output alignment
+hhsearch -i query.a3m -d pdb70 -e 0.01 -oa3m output.a3m
+```
+
+```bash Probability filtering
+# Minimum probability threshold
+hhsearch -i query.a3m -d pdb70 -p 50 -o results.hhr
+```
+</CodeGroup>
+
+<ParamField path="-E" type="float" default="1E+03">
+  Maximum E-value threshold for inclusion in **hit list**
+</ParamField>
+
+<ParamField path="-e" type="float" default="1E-03">
+  Maximum E-value threshold for inclusion in **output alignment** and HMM
+</ParamField>
+
+<ParamField path="-p" type="float" default="20">
+  Minimum probability threshold (0-100) for inclusion in hit list
+</ParamField>
+
+### Number of Hits
+
+<ParamField path="-Z" type="int" default="500">
+  Maximum number of lines in hit list
+</ParamField>
+
+<ParamField path="-z" type="int" default="10">
+  Minimum number of lines in hit list
+</ParamField>
+
+<ParamField path="-B" type="int" default="500">
+  Maximum number of alignments in alignment list
+</ParamField>
+
+<ParamField path="-b" type="int" default="10">
+  Minimum number of alignments in alignment list
+</ParamField>
+
+## Gap Penalties
+
+### Gap Opening and Extension
+
+<Note>
+Gap penalties are specified as positive numbers but applied as penalties (negative scores).
+</Note>
+
+<ParamField path="-gapd" type="float" default="0.15">
+  Gap open penalty factor for **deletions** (query gaps)
+</ParamField>
+
+<ParamField path="-gape" type="float" default="1.0">
+  Gap extension penalty factor
+</ParamField>
+
+<ParamField path="-gapf" type="float" default="0.6">
+  Factor for increasing gap opening penalty for **deletions**
+</ParamField>
+
+<ParamField path="-gapg" type="float" default="0.6">
+  Factor for increasing gap opening penalty for **insertions** (template gaps)
+</ParamField>
+
+<ParamField path="-gaph" type="float" default="0.6">
+  Factor for increasing gap extension penalty for deletions
+</ParamField>
+
+<ParamField path="-gapi" type="float" default="0.6">
+  Factor for increasing gap extension penalty for insertions
+</ParamField>
+
+### End Gap Penalties
+
+<ParamField path="-egq" type="float" default="0.0">
+  Penalty for end gaps when query not fully covered
+</ParamField>
+
+<ParamField path="-egt" type="float" default="0.0">
+  Penalty for end gaps when template not fully covered
+</ParamField>
+
+## Pseudocounts
+
+Pseudocounts prevent overfitting to the query alignment.
+
+### Admixture Parameters
+
+<ParamField path="-pc_hhm_context_engine.admix" type="int" default="2">
+  Admixture mode:
+  - `1`: Constant admixture
+  - `2`: HHsearch admixture (default)
+  - `3`: CSBlast admixture
+</ParamField>
+
+<ParamField path="-pcm" type="int" default="0">
+  Pseudocount mode for HMM:
+  - `0`: Default (context-dependent if available)
+  - `1`: Constant admixture
+  - `2`: HHsearch admixture
+  - `3`: CSBlast admixture
+</ParamField>
+
+<ParamField path="-pca" type="float" default="1.0">
+  Pseudocount admixture parameter **a**
+</ParamField>
+
+<ParamField path="-pcb" type="float" default="1.5">
+  Pseudocount admixture parameter **b**
+</ParamField>
+
+<ParamField path="-pcc" type="float" default="1.0">
+  Pseudocount admixture parameter **c** (HHsearch mode only)
+</ParamField>
+
+### Context-Specific Pseudocounts
+
+<ParamField path="-csb" type="float" default="1.7">
+  Context-specific pseudocount parameter b
+</ParamField>
+
+<ParamField path="-csw" type="float" default="1.7">
+  Context-specific pseudocount weight
+</ParamField>
+
+<ParamField path="-cs" type="string">
+  Path to context library for context-specific pseudocounts
+</ParamField>
+
+## Secondary Structure Scoring
+
+<ParamField path="-ssm" type="int" default="2">
+  Secondary structure scoring mode:
+  - `0`: No SS scoring
+  - `1`: SS scoring after alignment
+  - `2`: SS scoring during alignment (default)
+</ParamField>
+
+<ParamField path="-ssw" type="float" default="0.11">
+  Weight of secondary structure score
+</ParamField>
+
+<ParamField path="-ssa" type="float" default="1.0">
+  SS state evolution matrix: M1 = (1-ssa)*I + ssa*M0
+</ParamField>
+
+## Alignment Mode
+
+<Tabs>
+  <Tab title="Local Alignment">
+    ```bash Local (default)
+    # Align best matching regions
+    hhsearch -i query.a3m -d pdb70 -loc -o results.hhr
+    ```
+    
+    <Info>
+    Local alignment (Smith-Waterman) finds the best matching subsequences.
+    </Info>
+  </Tab>
+  
+  <Tab title="Global Alignment">
+    ```bash Global
+    # Align entire sequences
+    hhsearch -i query.a3m -d pdb70 -glob -o results.hhr
+    ```
+    
+    <Info>
+    Global alignment (Needleman-Wunsch) aligns sequences from end to end.
+    </Info>
+  </Tab>
+</Tabs>
+
+<ParamField path="-loc" type="flag">
+  Local alignment mode (default)
+</ParamField>
+
+<ParamField path="-glob" type="flag">
+  Global alignment mode
+</ParamField>
+
+## Realignment and MAC Algorithm
+
+<ParamField path="-realign" type="flag">
+  Realign hits using MAC (Maximum Accuracy) algorithm
+</ParamField>
+
+<ParamField path="-mact" type="float" default="0.35">
+  MAC alignment threshold (controls greediness at alignment ends)
+  
+  <Tip>
+  Lower values (e.g., 0.1) produce more conservative alignments
+  </Tip>
+</ParamField>
+
+<ParamField path="-realign_max" type="int" default="500">
+  Maximum number of hits to realign
+</ParamField>
+
+<ParamField path="-alt" type="int" default="1">
+  Number of alternative alignments to find
+</ParamField>
+
+## Filtering Parameters
+
+### Query MSA Filtering
+
+<ParamField path="-id" type="int" default="90">
+  Maximum sequence identity with all other sequences (0-100)
+</ParamField>
+
+<ParamField path="-qid" type="int" default="0">
+  Minimum sequence identity with query sequence (0-100)
+</ParamField>
+
+<ParamField path="-qsc" type="float" default="-20.0">
+  Minimum score per column with query sequence
+</ParamField>
+
+<ParamField path="-cov" type="int" default="0">
+  Minimum coverage threshold (0-100)
+</ParamField>
+
+<ParamField path="-diff" type="int" default="0">
+  Filter most different sequences that pass other thresholds
+</ParamField>
+
+### Match State Assignment
+
+<ParamField path="-M" type="string" default="a2m">
+  Match state assignment:
+  - `a2m`: By upper/lower case (default)
+  - `first`: By first sequence
+  - `[0-100]`: By percentage rule (e.g., `-M 50`)
+</ParamField>
+
+<ParamField path="-Mgaps" type="int" default="100">
+  Maximum percentage of gaps in match states
+</ParamField>
+
+## HHblits-Specific Parameters
+
+### Iterative Search
+
+<ParamField path="-n" type="int" default="2">
+  Number of search iterations
+  
+  ```bash Three iterations
+  hhblits -i query.fas -d uniclust30 -n 3 -oa3m result.a3m
+  ```
+</ParamField>
+
+<ParamField path="-e" type="float" default="1E-03">
+  E-value threshold for inclusion in next iteration
+</ParamField>
+
+### Prefiltering
+
+<ParamField path="-prefilter" type="flag" default="enabled">
+  Use prefiltering to speed up search (enabled by default)
+</ParamField>
+
+<ParamField path="-noprefilt" type="flag">
+  Disable prefiltering
+</ParamField>
+
+<ParamField path="-prefilter_evalue_thresh" type="float" default="1000">
+  E-value threshold for prefilter
+</ParamField>
+
+<ParamField path="-min_prefilter_hits" type="int" default="100">
+  Minimum number of hits to pass prefilter
+</ParamField>
+
+### Diversity Control
+
+<ParamField path="-neffmax" type="float" default="20">
+  Maximum Neff (diversity) for MSA after iteration
+</ParamField>
+
+## Performance Parameters
+
+### Multi-threading
+
+<ParamField path="-cpu" type="int" default="2">
+  Number of CPU threads to use
+  
+  ```bash Using 8 threads
+  hhblits -i query.fas -d database -cpu 8 -o results.hhr
+  ```
+</ParamField>
+
+### Memory Management
+
+<ParamField path="-maxres" type="int" default="15000">
+  Maximum number of HMM states (match states)
+</ParamField>
+
+<ParamField path="-maxseq" type="int" default="65535">
+  Maximum number of sequences in input alignment
+</ParamField>
+
+<ParamField path="-maxmem" type="float" default="3.0">
+  Maximum memory (GB) for realignment
+</ParamField>
+
+## Output Customization
+
+### Alignment Display
+
+<ParamField path="-seq" type="int" default="1">
+  Maximum number of query/template sequences to show in alignment
+</ParamField>
+
+<ParamField path="-aliw" type="int" default="80">
+  Alignment width (characters per line)
+</ParamField>
+
+<ParamField path="-showcons" type="flag">
+  Show consensus sequence in alignment
+</ParamField>
+
+<ParamField path="-showdssp" type="flag">
+  Show DSSP secondary structure in alignment
+</ParamField>
+
+<ParamField path="-showpred" type="flag">
+  Show predicted secondary structure in alignment
+</ParamField>
+
+### Verbosity
+
+<ParamField path="-v" type="int" default="2">
+  Verbosity level:
+  - `0`: Errors only
+  - `1`: Warnings
+  - `2`: Info (default)
+  - `3`: Debug
+</ParamField>
+
+## Advanced Scoring Parameters
+
+### Score Offset and Correlation
+
+<ParamField path="-shift" type="float" default="-0.03">
+  Score offset for match-match states
+  
+  <Info>
+  Adjusts the scoring to balance sensitivity and specificity
+  </Info>
+</ParamField>
+
+<ParamField path="-corr" type="float" default="0.1">
+  Weight of correlations between scores with |i-j| &lt;= 4
+</ParamField>
+
+<ParamField path="-sc" type="int" default="1">
+  Column score mode:
+  - `0`: No amino acid composition correction
+  - `1`: 1/2(query_avg + template_avg) (default)
+  - `2`: Template average frequencies
+  - `3`: Query average frequencies
+</ParamField>
+
+### Minimum Overlap
+
+<ParamField path="-min-overlap" type="int" default="0">
+  Minimum overlap between query and template
+  
+  ```bash Require 30-residue overlap
+  hhsearch -i query.a3m -d pdb70 -min-overlap 30 -o results.hhr
+  ```
+</ParamField>
+
+## Practical Examples
+
+<CodeGroup>
+```bash Sensitive search
+# High sensitivity, more iterations
+hhblits -i query.fas -d uniclust30 \
+  -n 3 \
+  -e 1E-5 \
+  -realign \
+  -mact 0.1 \
+  -cpu 8 \
+  -o results.hhr \
+  -oa3m output.a3m
+```
+
+```bash Fast search
+# Speed-optimized search
+hhblits -i query.fas -d uniclust30 \
+  -n 1 \
+  -e 1E-2 \
+  -cpu 16 \
+  -min_prefilter_hits 50 \
+  -o results.hhr
+```
+
+```bash Global alignment
+# Full-length alignment with SS scoring
+hhalign -i query.a3m -t template.a3m \
+  -glob \
+  -ssm 2 \
+  -ssw 0.2 \
+  -o alignment.hhr
+```
+
+```bash Custom gap penalties
+# Conservative gap opening
+hhsearch -i query.a3m -d pdb70 \
+  -gapd 0.3 \
+  -gape 1.0 \
+  -gapf 1.0 \
+  -gapg 1.0 \
+  -o results.hhr
+```
+</CodeGroup>
+
+## Parameter Files
+
+Save frequently used parameters in a file:
+
+```txt hhblits.params
+-n 3
+-e 1E-5
+-cpu 8
+-realign
+-mact 0.1
+```
+
+Use with `@` syntax:
+```bash
+hhblits -i query.fas -d database @hhblits.params -o results.hhr
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Algorithms" icon="brain" href="/advanced/algorithms">
+    Understand how parameters affect algorithms
+  </Card>
+  <Card title="Compilation" icon="hammer" href="/advanced/compilation">
+    Build HH-suite from source
+  </Card>
+</CardGroup>

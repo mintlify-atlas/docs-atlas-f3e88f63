@@ -1,0 +1,272 @@
+---
+title: HHalign
+description: Align two alignments or HMMs by HMM-HMM comparison
+---
+
+HHalign performs pairwise alignment between two multiple sequence alignments or HMMs using HMM-HMM comparison. It's ideal for detailed structural comparison, domain alignment, and when you need precise control over the alignment of two specific sequences or profiles.
+
+## Overview
+
+HHalign takes two inputs (query and template) and produces a high-quality pairwise alignment using the HMM-HMM alignment algorithm with Maximum Accuracy (MAC) alignment.
+
+### Key Features
+
+- **Pairwise HMM-HMM alignment**: Align two profiles with maximum sensitivity
+- **Self-comparison**: Find internal repeats by comparing a sequence to itself
+- **Flexible input**: Accepts sequences, MSAs, or pre-built HMMs
+- **MAC algorithm**: Maximum Accuracy alignment for optimal results
+
+## When to Use HHalign
+
+Use HHalign when you need to:
+
+- **Compare two specific proteins**: Align two sequences or profiles precisely
+- **Find internal repeats**: Compare a protein to itself to detect repeats
+- **Align protein domains**: Create detailed alignments between protein domains
+- **Merge two MSAs**: Combine two multiple sequence alignments
+- **Validate remote homology**: Generate detailed alignment for suspicious hits
+
+<Note>
+For database searches, use [hhblits](/tools/hhblits) or [hhsearch](/tools/hhsearch) instead.
+</Note>
+
+## Basic Usage
+
+<Steps>
+  <Step title="Align two sequences">
+    Basic pairwise alignment between query and template:
+    
+    ```bash
+    hhalign -i query.a3m -t template.hhm -o result.hhr
+    ```
+  </Step>
+
+  <Step title="Self-comparison for repeats">
+    Omit the template to find internal repeats:
+    
+    ```bash
+    hhalign -i protein.a3m -o repeats.hhr
+    ```
+    
+    This finds the best off-diagonal alignments.
+  </Step>
+
+  <Step title="Output alignment in different formats">
+    Generate alignment in A3M or FASTA format:
+    
+    ```bash
+    hhalign -i query.a3m -t template.a3m -o result.hhr -oa3m aligned.a3m
+    ```
+  </Step>
+</Steps>
+
+## Common Use Cases
+
+### Pairwise Protein Alignment
+
+Align two proteins with their MSAs for maximum accuracy:
+
+```bash
+hhalign -i query.a3m -t template.a3m -o result.hhr
+```
+
+From the README.md example:
+
+```bash
+hhalign -i T0187.a3m -t d1hz4a_.hhm -o result.hhr
+```
+
+### Finding Internal Repeats
+
+Detect repeating domains within a single protein:
+
+```bash
+hhalign -i protein.a3m -o repeats.hhr -alt 3
+```
+
+This finds up to 3 non-overlapping alternative alignments.
+
+### Domain Alignment with Position Exclusion
+
+Align specific regions while excluding others:
+
+```bash
+hhalign -i query.a3m -t template.a3m -o result.hhr \
+  -excl 1-33,97-168          # Exclude query positions
+  -template_excl 1-50        # Exclude template positions
+```
+
+### Generate Multiple Output Formats
+
+Create alignment in multiple formats simultaneously:
+
+```bash
+hhalign -i query.a3m -t template.a3m \
+  -o result.hhr \
+  -oa3m alignment.a3m \
+  -Ofas alignment.fas
+```
+
+## Key Parameters
+
+<AccordionGroup>
+  <Accordion title="Input/Output Options">
+    - `-i <file>` - Query alignment (A2M, A3M, FASTA) or HMM
+    - `-t <file>` - Template alignment or HMM (omit for self-comparison)
+    - `-o <file>` - Output file in HHR format (default: `<infile>.hhr`)
+    - `-oa3m <file>` - Write alignment in A3M format
+    - `-aa3m <file>` - Append alignment to existing A3M file
+    - `-Ofas/-Oa2m/-Oa3m <file>` - Pairwise alignment in FASTA/A2M/A3M
+  </Accordion>
+
+  <Accordion title="Alignment Mode">
+    - `-glob` - Use global alignment (align full sequences)
+    - `-loc` - Use local alignment (default, best local match)
+    - `-mact [0,1]` - MAC realignment threshold (default: 0.35)
+    - `-norealign` - Disable MAC realignment
+  </Accordion>
+
+  <Accordion title="Alternative Alignments">
+    - `-alt <int>` - Number of alternative alignments to show (default: 1)
+    - `-smin <float>` - Minimum raw score for alternative alignments
+  </Accordion>
+
+  <Accordion title="Position Exclusion">
+    - `-excl <range>` - Exclude query positions (e.g., '1-33,97-168')
+    - `-template_excl <range>` - Exclude template positions
+  </Accordion>
+
+  <Accordion title="Filtering Options">
+    - `-id [0,100]` - Maximum pairwise sequence identity % (default: 90)
+    - `-cov [0,100]` - Minimum coverage with master sequence % (default: 0)
+    - `-qid [0,100]` - Minimum sequence identity with query % (default: 0)
+    - `-diff [0,inf]` - Filter for diversity (default: depends on mode)
+  </Accordion>
+</AccordionGroup>
+
+## Output Format
+
+<CodeGroup>
+```text HHR Format (Standard Output)
+Query         query_protein
+Match_columns 250
+Template      template_protein
+Match_columns 245
+
+Probabilities and scores:
+ Probability: 99.8%
+ E-value:     2.3e-25
+ Score:       185.2 bits
+ Aligned_cols: 220
+ Identities:  35%
+ Similarity:  0.521
+
+Q query_protein   1 MSTIKGYRILLSGAIDSFSLTES--DKPTYLLVGPSGCSGKTTLLNAIAG  48
+Q Consensus       1 ~~~i~~~~~~~sG~iD~f~l~~~--~k~~Y~l~gp~G~~g~~~ll~~~~~  48
+                    |+++++++++++++++++++++++  +|+||++++++++||||||||||++
+T Consensus       1 ~~~v~~~~~~~sG~iD~f~l~~~ggek~~Y~l~gp~G~~g~~~ll~~~~~  50
+T template_prot   1 MRAVKGYRILLSGAIDSFSLTEGGGEKATYRLVGPSGCSGKTTLLNAIAG  50
+```
+
+```text A3M Format (-oa3m)
+>query_protein
+MSTIKGYRILLSGAIDSFSLTES--DKPTYLLVGPSGCSGKTTLLNAIAG
+>template_protein
+MRAVKGYRILLSGAIDSFSLTEGGGEKATYRLVGPSGCSGKTTLLNAIAG
+```
+</CodeGroup>
+
+## Tips and Best Practices
+
+<Tip>
+**Self-comparison tips**: When finding internal repeats, use `-alt` to find multiple non-overlapping alignments and `-smin` to set a minimum score threshold.
+</Tip>
+
+<Warning>
+Global alignment (`-glob`) forces full-length alignment. Use local alignment (default) unless you're certain both sequences should align end-to-end.
+</Warning>
+
+<Tip>
+**MAC threshold**: Lower `-mact` values (closer to 0) favor global alignment at the ends, while higher values (>0.1) favor local alignment. The default 0.35 works well for most cases.
+</Tip>
+
+## Advanced Options
+
+### Fine-tune Alignment Quality
+
+Control the alignment algorithm parameters:
+
+```bash
+hhalign -i query.a3m -t template.a3m -o result.hhr \
+  -mact 0.5 \      # Adjust MAC threshold
+  -shift -0.2 \    # Profile-profile score offset
+  -corr 0.1        # Weight for pair correlations
+```
+
+### Secondary Structure Scoring
+
+Include secondary structure in alignment:
+
+```bash
+hhalign -i query.a3m -t template.a3m -o result.hhr \
+  -ssm 2 \    # SS scoring mode (0=off, 1,2=after/during)
+  -ssw 0.5 \  # SS score weight
+  -ssa 0.3    # SS confusion matrix parameter
+```
+
+### Custom Gap Penalties
+
+Adjust gap opening and extension penalties:
+
+```bash
+hhalign -i query.a3m -t template.a3m -o result.hhr \
+  -gapb 1.0 \   # Transition pseudocount admixture
+  -gapd 0.15 \  # Gap open admixture for deletes
+  -gape 1.0 \   # Gap extend admixture
+  -gapf 0.6 \   # Factor for delete gap open
+  -gapg 0.6     # Factor for insert gap open
+```
+
+### Multiple Alternative Alignments
+
+Find several alternative alignments:
+
+```bash
+hhalign -i protein.a3m -o repeats.hhr \
+  -alt 5 \      # Show up to 5 alternatives
+  -smin 50.0    # Minimum score threshold
+```
+
+## Self-Comparison Mode
+
+When only `-i` is provided (no `-t`), HHalign compares the query to itself:
+
+```bash
+hhalign -i tandem_repeat.a3m -o self_alignment.hhr -alt 3
+```
+
+This mode:
+- Finds the best **off-diagonal** alignment (skips the trivial diagonal)
+- Reports all non-overlapping alignments above the significance threshold
+- Useful for detecting tandem repeats, domain duplications, or internal symmetry
+
+## Comparison with Other Tools
+
+| Feature | HHalign | HHsearch | HHblits |
+|---------|---------|----------|----------|
+| **Input** | 1-2 sequences/MSAs | 1 query + database | 1 query + database |
+| **Output** | Single alignment | Ranked list | Ranked list + MSA |
+| **Iteration** | No | No | Yes |
+| **Best for** | Pairwise comparison | Structure search | Deep MSA building |
+| **Self-comparison** | Yes | No | No |
+
+## Related Tools
+
+- [**hhblits**](/tools/hhblits) - Iterative database searching
+- [**hhsearch**](/tools/hhsearch) - Database searching without iteration
+- [**hhmake**](/tools/hhmake) - Convert alignments to HMM format
+- [**hhfilter**](/tools/hhfilter) - Filter alignments
+
+## References
+
+Remmert M, Biegert A, Hauser A, Söding J (2012). HHblits: lightning-fast iterative protein sequence searching by HMM-HMM alignment. *Nature Methods*, 9:173-175. [doi: 10.1038/nmeth.1818](https://doi.org/10.1038/nmeth.1818)

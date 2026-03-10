@@ -1,0 +1,234 @@
+---
+title: HHsearch
+description: Search HMM databases with a query alignment or HMM
+---
+
+HHsearch searches a database of HMMs with a query multiple sequence alignment or HMM. Unlike HHblits, it performs a single-round search without iteration, making it ideal for searching pre-built databases of known protein families.
+
+## Overview
+
+HHsearch is optimized for searching databases of profile HMMs, such as PDB, Pfam, or SCOP. It uses HMM-HMM comparison to detect remote homologies with high sensitivity.
+
+### Key Features
+
+- **Single-round search**: No iterative profile building
+- **Database search**: Designed for pre-built HMM databases
+- **High sensitivity**: Detects remote homologs through HMM-HMM comparison
+- **Fast**: No prefilter overhead or iteration steps
+
+## When to Use HHsearch
+
+Use HHsearch when you need to:
+
+- **Search structure databases**: Find proteins with similar structures in PDB70
+- **Identify protein families**: Search against Pfam or other family databases
+- **Compare to known folds**: Search SCOP or ECOD databases
+- **Perform single-round searches**: When you have a pre-built query HMM or MSA
+
+<Note>
+For building deep MSAs through iterative searching, use [hhblits](/tools/hhblits) instead.
+</Note>
+
+## Basic Usage
+
+<Steps>
+  <Step title="Search with a FASTA sequence">
+    Search a database with a single sequence or MSA:
+    
+    ```bash
+    hhsearch -i query.a3m -d pdb70 -o results.hhr
+    ```
+  </Step>
+
+  <Step title="Search with an HMM">
+    Use a pre-built HMM as query:
+    
+    ```bash
+    hhsearch -i query.hhm -d scop70 -o results.hhr
+    ```
+  </Step>
+
+  <Step title="Control result output">
+    Adjust E-value threshold and number of hits:
+    
+    ```bash
+    hhsearch -i query.a3m -d pdb70 -o results.hhr -e 0.001 -Z 100
+    ```
+  </Step>
+</Steps>
+
+## Common Use Cases
+
+### Finding Structural Homologs
+
+Search the PDB database to find proteins with similar structures:
+
+```bash
+hhsearch -i query.a3m -d pdb70 -o results.hhr
+```
+
+This is the primary use case from the README.md example.
+
+### Identifying Protein Family Membership
+
+Search Pfam to classify your protein:
+
+```bash
+hhsearch -i unknown_protein.a3m -d pfam -o pfam_results.hhr -e 1e-3
+```
+
+### Generating Tabular Output
+
+Create BLAST-compatible output format:
+
+```bash
+hhsearch -i query.a3m -d pdb70 -blasttab results.m8
+```
+
+### Output Multiple Sequence Alignment
+
+Merge significant matches into an MSA:
+
+```bash
+hhsearch -i query.a3m -d pdb70 -o results.hhr -oa3m merged.a3m -e 1e-10
+```
+
+## Key Parameters
+
+<AccordionGroup>
+  <Accordion title="Input/Output Options">
+    - `-i <file>` - Input query (FASTA, A2M, A3M, or HMM)
+    - `-o <file>` - Output file in HHR format (default: `<infile>.hhr`)
+    - `-d <name>` - Database name (can specify multiple with multiple `-d` flags)
+    - `-oa3m <file>` - Write result MSA in A3M format
+    - `-blasttab <file>` - Write results in BLAST tabular format
+  </Accordion>
+
+  <Accordion title="Search Thresholds">
+    - `-e [0,1]` - E-value cutoff for inclusion in result alignment (default: 0.001)
+    - `-E [0,inf]` - Maximum E-value in result list (default: 1E+06)
+    - `-p [0,100]` - Minimum probability in result list (default: 20)
+    - `-Z <int>` - Maximum number of hits in result list (default: 500)
+    - `-z <int>` - Minimum number of hits in result list (default: 10)
+  </Accordion>
+
+  <Accordion title="Alignment Mode">
+    - `-glob` - Use global alignment mode (align full query and template)
+    - `-loc` - Use local alignment mode (default, find best local match)
+    - `-mact [0,1]` - Threshold for MAC realignment greediness (default: 0.35)
+  </Accordion>
+
+  <Accordion title="Filtering Options">
+    - `-id [0,100]` - Maximum pairwise sequence identity % (default: 90)
+    - `-cov [0,100]` - Minimum coverage with master sequence % (default: 0)
+    - `-qid [0,100]` - Minimum sequence identity with query % (default: 0)
+    - `-qsc [-inf,100]` - Minimum score per column (default: -20.0)
+  </Accordion>
+</AccordionGroup>
+
+## Output Format
+
+<CodeGroup>
+```text HHR Format
+Query         protein_query
+Match_columns 245
+No_of_seqs    150 out of 200
+
+ No Hit                             Prob E-value P-value  Score    SS Cols Query HMM Template HMM
+  1 3ABC_A Crystal structure         99.8   1e-35  1e-40  220.5   9.8  240   5-245    1-240 (248)
+  2 4XYZ_B NMR structure             95.2    0.02  2e-07  120.8   7.2  180  45-225   10-190 (210)
+```
+
+```text BLAST Tabular Format (-blasttab)
+query target #match/tLen alnLen #mismatch #gapOpen qstart qend tstart tend eval score
+Q001  3ABC_A 0.967       245    8          0        5      245  1      240  1e-35 220.5
+Q001  4XYZ_B 0.857       180    15         2        45     225  10     190  0.02  120.8
+```
+</CodeGroup>
+
+## Tips and Best Practices
+
+<Tip>
+**Database selection**:
+- **PDB70**: For finding structural templates (clustered at 70% identity)
+- **Pfam**: For protein family classification
+- **SCOP**: For fold recognition and evolutionary relationships
+- **dbCAN**: For carbohydrate-active enzymes
+</Tip>
+
+<Warning>
+HHsearch does NOT iterate. If you need to build a deep MSA, run hhblits first, then use the resulting MSA with hhsearch.
+</Warning>
+
+<Tip>
+**Local vs Global alignment**:
+- Use **local** (default) when domains might be different sizes
+- Use **global** only when you expect full-length alignment
+</Tip>
+
+## Advanced Options
+
+### Realignment Control
+
+Control the Maximum Accuracy (MAC) realignment:
+
+```bash
+hhsearch -i query.a3m -d pdb70 -o results.hhr \
+  -norealign          # Disable MAC realignment
+  # OR
+  -mact 0.5 \          # Adjust threshold
+  -realign_max 100     # Limit number of realignments
+```
+
+### Secondary Structure Scoring
+
+Include secondary structure in the scoring:
+
+```bash
+hhsearch -i query.a3m -d pdb70 -o results.hhr \
+  -ssm 2 \    # SS scoring mode: 0=off, 1,2=after/during alignment
+  -ssw 0.5    # Weight of SS score (0-1)
+```
+
+### Excluding Query Regions
+
+Exclude specific query positions from alignment:
+
+```bash
+hhsearch -i query.a3m -d pdb70 -o results.hhr \
+  -excl 1-33,97-168
+```
+
+### Multiple Database Search
+
+Search multiple databases in one run:
+
+```bash
+hhsearch -i query.a3m \
+  -d pdb70 \
+  -d scop70 \
+  -d pfam \
+  -o combined_results.hhr
+```
+
+## Comparison with HHblits
+
+| Feature | HHsearch | HHblits |
+|---------|----------|----------|
+| **Iterations** | Single round | Multiple rounds (default 2) |
+| **Prefilter** | No | Yes (ungapped alignment) |
+| **Best for** | Searching HMM databases | Building MSAs, sequence searches |
+| **Speed** | Fast | Fast with prefilter |
+| **Sensitivity** | High | Very high (iterative) |
+| **Database type** | HMM databases | Sequence databases |
+
+## Related Tools
+
+- [**hhblits**](/tools/hhblits) - Iterative sequence searching and MSA building
+- [**hhmake**](/tools/hhmake) - Build HMM from alignment
+- [**hhalign**](/tools/hhalign) - Pairwise HMM-HMM alignment
+- [**hhfilter**](/tools/hhfilter) - Filter MSAs by sequence identity
+
+## References
+
+Steinegger M, Meier M, Mirdita M, Vöhringer H, Haunsberger SJ, Söding J (2019). HH-suite3 for fast remote homology detection and deep protein annotation. *BMC Bioinformatics*, 473. [doi: 10.1186/s12859-019-3019-7](https://doi.org/10.1186/s12859-019-3019-7)

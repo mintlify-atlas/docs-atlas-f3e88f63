@@ -1,0 +1,429 @@
+---
+title: 'File Formats'
+description: 'Complete reference for HH-suite file formats including A3M, HHM, and HHR'
+---
+
+## Overview
+
+HH-suite uses several specialized file formats for storing alignments, HMM profiles, and search results. Understanding these formats is essential for working with HH-suite tools and integrating them into custom workflows.
+
+## A3M Format
+
+### Description
+
+A3M is a compact multiple sequence alignment format that distinguishes between match states (aligned to consensus) and insert states (not aligned to consensus).
+
+### Format Specification
+
+Source: `scripts/a3m.py:13-20`
+
+**Character Meanings:**
+- **Upper case letters** (`A-Z`): Match states (aligned to consensus)
+- **Lower case letters** (`a-z`): Insert states (not aligned to consensus)
+- **Dash** (`-`): Deletion in match columns
+- **Dot** (`.`): Gap aligned to insert states (optional in A3M, required in A2M)
+
+### Example
+
+```fasta
+>#Query_sequence
+MKLLIVLLFSCVLAQVAFPGTASTVLTPGMNSSHQLTDIISTLQQGDAVLTVK
+>Homolog_1
+MKLLVVLLFSFVLARAVFP--ASKVFTPGMNSSHQLTDIISTLQkgapegDAVLSVK
+>Homolog_2
+--LLIVLLFSSVLAHVVFPGTASTPMTPN---SYELTDKVTVLNQGEAVLsveqpGK
+```
+
+**Explanation:**
+- Query has 53 match states
+- Homolog_1: `kgapeg` are insertions (not in consensus)
+- Homolog_1: `--` are deletions (consensus has residues here)
+- Homolog_2: Lower case `sveqp` are insertions
+
+### Special Sequences
+
+A3M files can include annotation lines:
+
+<Accordion title="Secondary Structure Annotations">
+
+```fasta
+>ss_pred
+CCCCCCCCCCCHHHHHHHHHHHHCCCEEEEEEEECCCCCHHHHHHHCCCEEEEEE
+```
+
+**Secondary structure prediction:**
+- `H` = Helix
+- `E` = Extended (beta sheet)
+- `C` = Coil/Loop
+
+```fasta
+>ss_conf
+9876543210111234567890123456789012345678901234567890123
+```
+
+**Confidence values:**
+- `0-9` = Confidence level (0=low, 9=high)
+
+```fasta
+>ss_dssp
+CCCBTTSHHHHHHHHHTTSCCEEEEEBTTCCHHHHHHGGGCCCEEEEEBTTCCC
+```
+
+**DSSP secondary structure:**
+- `H` = Alpha helix
+- `G` = 3-10 helix
+- `I` = Pi helix
+- `E` = Extended (beta sheet)
+- `B` = Beta bridge
+- `T` = Turn
+- `S` = Bend
+- `C` = Coil
+
+</Accordion>
+
+### Consensus Sequence
+
+One sequence can be marked as consensus by appending `_consensus` to its name:
+
+```fasta
+>Query_consensus
+MKLLIVLLFSCVLAQVAFPGTASTVLTPGMNSSHQLTDIISTLQQGDAVLTVK
+```
+
+<Warning>
+Each A3M file must contain exactly one consensus sequence. Multiple consensus sequences will cause an error.
+</Warning>
+
+### A3M vs A2M
+
+The key difference:
+
+**A2M:** Gaps aligned to inserts are explicitly represented with dots
+```
+MKLLVVLLFSFVLARAVFP--ASKVFTPGMNSSHQLTDIISTLQkgapegDAVLSVK
+MKLLVVLLFSFVLARAVFP--ASKVFTPGMNSSHELTRKLSHLQ......DAVLSVK
+```
+
+**A3M:** Gaps aligned to inserts may be omitted
+```
+MKLLVVLLFSFVLARAVFP--ASKVFTPGMNSSHQLTDIISTLQkgapegDAVLSVK
+MKLLVVLLFSFVLARAVFP--ASKVFTPGMNSSHELTRKLSHLQDAVLSVK
+```
+
+<Tip>
+A3M format is more compact than A2M, reducing file sizes for large alignments by 20-50%.
+</Tip>
+
+## HHM Format
+
+### Description
+
+HHM (HH-suite HMM) format stores Hidden Markov Model profiles with amino acid emission and transition probabilities.
+
+### File Structure
+
+```
+HHsearch <version>
+NAME  <profile_name>
+FAM   <family_id>
+FILE  <source_file>
+LENG  <length> match states, <N_in> sequences
+FILT  <N_filtered> out of <N_in>
+NEFF  <Neff>
+EVD   <mu> <lamda> (optional)
+SS    (secondary structure)
+SA    (solvent accessibility)
+NULL  <null_model_probabilities>
+
+(Match state blocks...)
+```
+
+### Match State Block
+
+Each match state contains:
+
+```
+POS <position>
+A C D E F G H I K L M N P Q R S T V W Y
+M->M M->I M->D I->M I->I D->M D->D
+```
+
+**Explanation:**
+- **POS**: Position in the alignment (1-based)
+- **Emission probabilities**: 20 values for each amino acid (in log scale)
+- **Transition probabilities**: 7 values for state transitions (in log scale)
+
+### Example
+
+```
+HHsearch 1.5
+NAME  d1a3aa_
+FAM   
+FILE  /path/to/alignment.a3m
+LENG  157 match states, 50 sequences
+FILT  45 out of 50
+NEFF  6.5
+NULL  3706  5728  4211  4064  4839  3729  4763  4308  4069  3323  5509  4640  4464  4937  4285  4423  3815  3783  6325  4665
+HMM   A     C     D     E     F     G     H     I     K     L     M     N     P     Q     R     S     T     V     W     Y
+      M->M  M->I  M->D  I->M  I->I  D->M  D->D
+NULL  0     *     *     *     *     *     *
+      1000  1000  -500  -500  -500  -500  -500
+//
+POS 1
+      -500  -500  1200  800   -500  600   -500  -500  -500  -500  -500  -500  -500  -500  -500  -500  -500  -500  -500  -500
+      -150  *     -500  0     *     0     *
+//
+```
+
+<Note>
+Probabilities are stored as log-odds scores. Asterisks (*) represent infinity (impossible transitions).
+</Note>
+
+## HHR Format
+
+### Description
+
+HHR is the human-readable results format from `hhsearch`, `hhblits`, and `hhalign`. It contains alignment details, statistics, and match summaries.
+
+### File Structure
+
+<Steps>
+  <Step title="Header Section">
+    Query information and search parameters
+  </Step>
+  
+  <Step title="Match Summary Table">
+    List of all significant hits with statistics
+  </Step>
+  
+  <Step title="Detailed Alignments">
+    Full alignments for each hit
+  </Step>
+</Steps>
+
+### Match Summary Format
+
+```
+ No Hit                             Prob E-value P-value  Score    SS Cols Query HMM  Template HMM
+  1 d1a3aa_ (A:1-157)              100.0   1E-45  1E-51  325.6  10.5  157    1-157      1-157 (157)
+  2 d1b3aa_ (A:1-143)               99.9   2E-35  2E-41  265.3   9.8  143    1-143      1-143 (143)
+```
+
+**Columns:**
+- **No**: Rank of hit
+- **Hit**: Database identifier and description
+- **Prob**: Probability that hit is a true positive (0-100%)
+- **E-value**: Expected number of false positives with this score or better
+- **P-value**: Probability of false positive
+- **Score**: Raw alignment score (bits)
+- **SS**: Secondary structure score
+- **Cols**: Number of aligned columns
+- **Query HMM**: Query alignment range
+- **Template HMM**: Template alignment range
+
+### Detailed Alignment Format
+
+```
+No 1
+>d1a3aa_
+Probab=100.00  E-value=1e-45  Score=325.6  Aligned_cols=157  Identities=100%
+
+Q ss_pred        CCHHHHHHHHHHHHHHCCCCEEEEEECCCCHHHHHHHHCCCEEEEE
+Q d1a3aa_        MKLLIVLLFSSVLAHVVFPGTASTPMTPNSSYELTKDVTVLNQGEA
+Q Consensus      mkllivllf~svla~vvfpgTaStpmTPN~~ye~T~~vt~l~QGea
+                 |||||||||||||||||||||||||||||||||||||||||||||||  
+T Consensus      mkllivllf~svla~vvfpgTaStpmTPN~~ye~T~~vt~l~QGea
+T d1a3aa_        MKLLIVLLFSSVLAHVVFPGTASTPMTPNSSYELTKDVTVLNQGEA
+T ss_pred        CCHHHHHHHHHHHHHHCCCCEEEEEECCCCHHHHHHHHCCCEEEEE
+```
+
+**Components:**
+- **Q ss_pred**: Query secondary structure prediction
+- **Q [name]**: Query sequence
+- **Q Consensus**: Query consensus sequence
+- **Match line**: Symbols indicating match quality (`|` = identical, `+` = similar, `.` = weak)
+- **T Consensus**: Template consensus
+- **T [name]**: Template sequence
+- **T ss_pred**: Template secondary structure
+
+<Accordion title="Match Line Symbols">
+  - `|` = Identical residues
+  - `+` = Similar residues (positive substitution score)
+  - `.` = Weakly similar
+  - ` ` (space) = Dissimilar or gaps
+</Accordion>
+
+## Other Formats
+
+### FASTA Format
+
+Standard unaligned sequence format:
+
+```fasta
+>Sequence_ID Description
+MKLLIVLLFSCVLAQVAFPGTASTVLTPGMNSSHQLTDIISTLQQGDAVLTVK
+GEAVLTCKGNSTPQRAQSVSSASTYQTGKPADQTIPLIKPYTKDVGTGPVK
+```
+
+### STOCKHOLM Format
+
+Used by HMMER and some other tools:
+
+```stockholm
+# STOCKHOLM 1.0
+#=GF ID   Family_name
+#=GF AC   Family_accession
+
+seq1    MKLLIVLLFSSVLAHVVFPGTASTPMTPN
+seq2    MKLLIVLLFSSVLAQVAFPGTASTPMTPN
+seq3    MKLLIVLLFSAVLAHVVFPGTASTPMTPN
+#=GC SS_cons CCHHHHHHHHHHHHHCCCCEEEEEECCCC
+//
+```
+
+### PSI-BLAST Format
+
+Position-Specific Scoring Matrix format:
+
+```
+         A  R  N  D  C  Q  E  G  H  I  L  K  M  F  P  S  T  W  Y  V
+    1 M  -1 -1 -2 -3 -1  0 -2 -3 -2  1  2 -1  5 -2 -2 -1 -1 -1 -1  1
+    2 K  -1  2  0 -1 -3  1  1 -2 -1 -3 -2  5 -1 -3 -1  0 -1 -3 -2 -2
+```
+
+## Compressed Formats
+
+### CA3M Format
+
+Compressed A3M format that stores sequences as references to a sequence database.
+
+Source: `src/a3m_compress.cpp:245-354`
+
+**Structure:**
+1. Header/commentary (optional)
+2. Consensus sequence
+3. Separator: `;`
+4. Compressed sequences:
+   - 4 bytes: Database entry index
+   - 2 bytes: Start position in sequence
+   - 2 bytes: Number of blocks
+   - Block data: Match counts + insertion/deletion counts
+
+<Tip>
+CA3M files are 60-80% smaller than uncompressed A3M files when using a sequence database.
+</Tip>
+
+### FFindex Format
+
+FFindex is a database format for storing many small files efficiently:
+
+**Index file (`.ffindex`):**
+```
+entry_name1  offset1  length1
+entry_name2  offset2  length2
+```
+
+**Data file (`.ffdata`):**
+Concatenated data with entries at specified offsets.
+
+## Format Conversion
+
+Use `reformat.pl` to convert between formats:
+
+<CodeGroup>
+```bash A3M to A2M
+reformat.pl a3m a2m input.a3m output.a2m
+```
+
+```bash FASTA to A3M
+reformat.pl fas a3m input.fasta output.a3m -M first
+```
+
+```bash Stockholm to A3M
+reformat.pl sto a3m input.sto output.a3m
+```
+
+```bash Remove Insertions
+reformat.pl input.a3m output.fas -r
+```
+</CodeGroup>
+
+See [Helper Scripts](/tools/scripts) for more conversion options.
+
+## Format Validation
+
+### Validate A3M Files
+
+```bash
+check_a3m.py input.a3m
+```
+
+Checks for:
+- Valid character sets
+- Consistent match state counts
+- Proper consensus sequence
+- Valid annotations
+
+### Common Format Errors
+
+<Warning>
+**Error: "Diverging number of match states"**
+
+Cause: Sequences have different numbers of uppercase/gap characters.
+
+Solution: Ensure all sequences are properly aligned with the same match columns.
+</Warning>
+
+<Warning>
+**Error: "Multiple definitions of consensus"**
+
+Cause: More than one sequence name ends with `_consensus`.
+
+Solution: Ensure only one consensus sequence in the A3M file.
+</Warning>
+
+<Warning>
+**Error: "Undefined character in protein sequence"**
+
+Cause: Invalid amino acid character (not in `A-Za-z-.`).
+
+Solution: Remove or replace invalid characters.
+</Warning>
+
+## Format Best Practices
+
+<Accordion title="Tips for Working with HH-suite Formats">
+  
+  1. **Use A3M for alignments**: It's more compact than A2M and supported by all HH-suite tools
+  
+  2. **Add secondary structure**: Include `>ss_pred` and `>ss_conf` lines for better search performance
+  
+  3. **Validate before processing**: Run `check_a3m.py` on alignments before database building
+  
+  4. **Use FFindex for databases**: Essential for efficient storage and access of many profiles
+  
+  5. **Compress large databases**: Use CA3M format to reduce disk space by 60-80%
+  
+  6. **Keep all database files**: HH-suite databases need both `.ffdata` and `.ffindex` files
+  
+  7. **Parse HHR programmatically**: The HHR format is human-readable but can be parsed for automated workflows
+
+</Accordion>
+
+## Format Specifications Summary
+
+| Format | Type | Used For | Tools |
+|--------|------|----------|-------|
+| **A3M** | Alignment | Multiple sequence alignments | hhblits, hhmake |
+| **HHM** | Profile | HMM profiles with emissions/transitions | hhsearch, hhalign |
+| **HHR** | Results | Search results and alignments | hhsearch output |
+| **CA3M** | Compressed | Compressed alignments | a3m_extract |
+| **FFindex** | Database | Efficient multi-file storage | All database tools |
+| **FASTA** | Sequence | Single sequences | Input format |
+
+## See Also
+
+- [A3M Tools](/tools/a3m-tools) - Working with A3M files
+- [Helper Scripts](/tools/scripts) - Format conversion utilities
+- [Building Custom Databases](/guides/building-custom-databases) - Database format requirements
+- [File Format Examples](https://github.com/soedinglab/hh-suite/tree/master/data) - Example files in the HH-suite repository

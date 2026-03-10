@@ -1,0 +1,126 @@
+---
+title: Introduction to HH-suite
+description: Learn about HH-suite, an open-source tool for sensitive protein sequence searching using HMM-HMM comparison
+---
+
+## What is HH-suite?
+
+HH-suite is an open-source software package for **sensitive protein sequence searching** based on the pairwise alignment of hidden Markov models (HMMs). It's designed to detect remote homology relationships that traditional sequence-to-sequence comparison methods often miss.
+
+<Note>
+HH-suite3 is maintained by the Söding Lab at the Max Planck Institute for Biophysical Chemistry and is widely used in structural biology, protein function prediction, and evolutionary studies.
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="HMM-HMM Comparison" icon="brain">
+    Uses profile-to-profile alignment for significantly improved sensitivity compared to sequence-based methods
+  </Card>
+  <Card title="Fast Performance" icon="bolt">
+    Optimized implementations with SSE2/AVX2 support and optional MPI parallelization
+  </Card>
+  <Card title="Multiple Tools" icon="wrench">
+    Includes hhblits, hhsearch, hhmake, hhalign, and more for various workflows
+  </Card>
+  <Card title="Large Databases" icon="database">
+    Compatible with Uniclust, BFD, Pfam, SCOP, PDB70, and custom databases
+  </Card>
+</CardGroup>
+
+## How HMM-HMM Comparison Works
+
+Traditional sequence comparison methods compare individual sequences, but HH-suite takes a more powerful approach:
+
+<Steps>
+  <Step title="Build Query Profile">
+    Convert your query sequence into a Hidden Markov Model (HMM) that represents evolutionary information from related sequences
+  </Step>
+  <Step title="Compare Profiles">
+    Align your query HMM against target HMMs from a database, capturing position-specific amino acid preferences
+  </Step>
+  <Step title="Score Matches">
+    Calculate alignment scores and statistical significance (E-values) to identify homologous proteins
+  </Step>
+</Steps>
+
+This profile-to-profile approach dramatically increases sensitivity for detecting remote evolutionary relationships.
+
+## Main Programs
+
+### hhblits
+Iterative profile search against sequence databases. Fast and sensitive for building multiple sequence alignments.
+
+```bash
+hhblits -i query.fasta -o results.hhr -d database
+```
+
+### hhsearch
+Search with a query profile against a database of HMM profiles. Ideal for finding remote homologs in well-curated databases like PDB70 or Pfam.
+
+```bash
+hhsearch -i query.a3m -d pdb70 -o results.hhr
+```
+
+### hhmake
+Build HMM profiles from multiple sequence alignments.
+
+```bash
+hhmake -i alignment.a3m -o profile.hhm
+```
+
+### hhalign
+Align two HMMs or profiles for detailed comparison.
+
+```bash
+hhalign -i query.hhm -t target.hhm -o alignment.hhr
+```
+
+## Use Cases
+
+<Tip>
+HH-suite excels at tasks requiring detection of distant evolutionary relationships.
+</Tip>
+
+- **Protein Structure Prediction**: Find templates for homology modeling
+- **Functional Annotation**: Infer function by detecting remote homologs with known functions
+- **Evolutionary Studies**: Trace protein family relationships across deep evolutionary time
+- **Metagenomics**: Annotate novel proteins from environmental samples
+- **Domain Architecture**: Identify conserved domains in multi-domain proteins
+
+## System Requirements
+
+HH-suite3 requires:
+
+- **64-bit system** (Linux, macOS, or WSL on Windows)
+- **SSE2 instruction set** (AVX2 recommended for ~2x speedup)
+- Support for **ARM64** and **PPC64LE** architectures on Linux
+
+<Warning>
+Check your CPU capabilities with `cat /proc/cpuinfo | grep sse2` on Linux or `sysctl -a | grep machdep.cpu.features | grep SSE2` on macOS.
+</Warning>
+
+## Version Information
+
+The current version is **HH-suite 3.3.0**, which includes performance improvements, better handling of large databases, and enhanced multithreading support.
+
+## Citation
+
+If you use HH-suite in your research, please cite:
+
+<Note>
+Steinegger M, Meier M, Mirdita M, Vöhringer H, Haunsberger S J, and Söding J (2019)
+HH-suite3 for fast remote homology detection and deep protein annotation, *BMC Bioinformatics*, 473. 
+[doi: 10.1186/s12859-019-3019-7](https://doi.org/10.1186/s12859-019-3019-7)
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install HH-suite via conda, Docker, or from source
+  </Card>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Run your first protein search in minutes
+  </Card>
+</CardGroup>

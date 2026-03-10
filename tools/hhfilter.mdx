@@ -1,0 +1,355 @@
+---
+title: HHfilter
+description: Filter multiple sequence alignments by sequence identity and coverage
+---
+
+HHfilter removes redundant sequences from multiple sequence alignments based on pairwise sequence identity, coverage, and other criteria. It's used to reduce alignment size while maintaining diversity, improving both search speed and memory usage.
+
+## Overview
+
+HHfilter reads an alignment in A2M, A3M, or FASTA format and writes a filtered alignment in A3M format. It can filter by maximum pairwise identity, minimum coverage, sequence identity with the master sequence, and alignment diversity.
+
+### Key Features
+
+- **Redundancy removal**: Filter sequences above a sequence identity threshold
+- **Coverage filtering**: Remove sequences with low coverage
+- **Diversity control**: Select the most diverse set of sequences
+- **Fast processing**: Efficiently handles large alignments
+
+## When to Use HHfilter
+
+Use HHfilter when you need to:
+
+- **Reduce alignment size**: Remove redundant sequences before HMM building
+- **Control memory usage**: Smaller alignments require less RAM
+- **Speed up searches**: Fewer sequences mean faster HMM comparisons
+- **Improve alignment quality**: Remove partial or low-quality sequences
+- **Prepare alignments for downstream tools**: Many tools benefit from filtered input
+
+<Note>
+HHfilter is often used as a preprocessing step before [hhmake](/tools/hhmake) or as part of an alignment pipeline.
+</Note>
+
+## Basic Usage
+
+<Steps>
+  <Step title="Filter by sequence identity">
+    Remove sequences with >90% identity:
+    
+    ```bash
+    hhfilter -i input.a3m -o filtered.a3m -id 90
+    ```
+  </Step>
+
+  <Step title="Filter by coverage">
+    Keep only sequences with ≥50% coverage:
+    
+    ```bash
+    hhfilter -i input.a3m -o filtered.a3m -cov 50
+    ```
+  </Step>
+
+  <Step title="Combine multiple filters">
+    Apply both identity and coverage filters:
+    
+    ```bash
+    hhfilter -i input.a3m -o filtered.a3m -id 90 -cov 50 -qid 30
+    ```
+  </Step>
+</Steps>
+
+## Common Use Cases
+
+### Standard Redundancy Removal
+
+Remove highly similar sequences (default use case from help):
+
+```bash
+hhfilter -i d1mvfd_.a2m -o d1mvfd_.fil.a2m -id 50
+```
+
+This keeps only sequences with ≤50% pairwise identity to each other.
+
+### Prepare Alignment for HMM Building
+
+Filter before creating an HMM:
+
+```bash
+hhfilter -i raw_alignment.a3m -o filtered.a3m -id 90 -cov 50
+hhmake -i filtered.a3m -o profile.hhm
+```
+
+### Maximum Diversity Selection
+
+Select the most diverse set of sequences:
+
+```bash
+hhfilter -i alignment.a3m -o diverse.a3m -diff 100 -id 90
+```
+
+This keeps at least 100 sequences per 50-column block while removing sequences above 90% identity.
+
+### Quality Filtering
+
+Remove low-quality sequences:
+
+```bash
+hhfilter -i alignment.a3m -o quality_filtered.a3m \
+  -cov 75 \    # At least 75% coverage
+  -qid 25 \    # At least 25% identity with query
+  -qsc 0.5     # Minimum score per column
+```
+
+### Pipeline Integration
+
+Use in a sequence processing pipeline:
+
+```bash
+# Download, align, and filter in one pipeline
+cat sequences.fas | \
+  mafft - | \
+  hhfilter -i stdin -o filtered.a3m -id 90 -cov 50
+```
+
+## Key Parameters
+
+<AccordionGroup>
+  <Accordion title="Input/Output Options">
+    - `-i <file>` - Input alignment (A2M, A3M, or FASTA format)
+    - `-o <file>` - Output file in A3M format (overwrites existing)
+    - `-a <file>` - Append to output file instead of overwriting
+    - `-v <int>` - Verbose mode (0=silent, 1=warnings, 2=verbose)
+  </Accordion>
+
+  <Accordion title="Sequence Identity Filtering">
+    - `-id [0,100]` - Maximum pairwise sequence identity % (default: 90)
+      - Remove the shorter of two sequences if identity exceeds this threshold
+      - Lower values = more aggressive filtering
+      - Common values: 50 (stringent), 70 (moderate), 90 (light)
+  </Accordion>
+
+  <Accordion title="Coverage and Quality">
+    - `-cov [0,100]` - Minimum coverage with query % (default: 0)
+      - Sequences must align to at least this % of query length
+    - `-qid [0,100]` - Minimum sequence identity with query % (default: 0)
+      - Sequences must have at least this % identity to the first sequence
+    - `-qsc [-inf,100]` - Minimum score per column with query (default: -20.0)
+      - Higher values = stricter quality requirements
+  </Accordion>
+
+  <Accordion title="Diversity Filtering">
+    - `-diff [0,inf]` - Filter for diversity (default: 0 = off)
+      - Select most diverse set keeping at least this many sequences per 50-column block
+      - Higher values = maintain more diversity
+    - `-neff [1,inf]` - Target diversity (effective number of sequences)
+      - Iteratively adjust `-qsc` to reach target Neff value
+  </Accordion>
+
+  <Accordion title="Input Format">
+    - `-M a2m` - A2M/A3M format (default): upper=match, lower=insert
+    - `-M first` - FASTA format: first sequence defines match states
+    - `-M [0,100]` - FASTA format: columns with &lt;X% gaps are match states
+  </Accordion>
+</AccordionGroup>
+
+## Understanding Filtering Behavior
+
+### Identity Filtering (-id)
+
+When two sequences exceed the identity threshold:
+- The **shorter** sequence is removed
+- This preserves longer, more complete sequences
+- Applied pairwise across all sequences
+
+```bash
+# Before filtering (3 sequences, high similarity)
+>seq1 (200 residues, 95% identical to seq2)
+>seq2 (250 residues, 95% identical to seq1)  
+>seq3 (180 residues, unique)
+
+# After: hhfilter -id 90
+>seq2 (kept - longer than seq1)
+>seq3 (kept - unique)
+```
+
+### Coverage Filtering (-cov)
+
+Sequences must align to at least X% of the master (first) sequence:
+
+```bash
+# Master sequence: 300 residues
+# Sequence A: aligns to 200 positions = 67% coverage
+# Sequence B: aligns to 120 positions = 40% coverage
+
+# With -cov 50:
+# Sequence A: KEPT (67% ≥ 50%)
+# Sequence B: REMOVED (40% < 50%)
+```
+
+### Diversity Filtering (-diff)
+
+Selects the most diverse set of sequences:
+
+```bash
+hhfilter -i alignment.a3m -o diverse.a3m -diff 100
+# Keeps at least 100 sequences per 50-column block
+# Prioritizes diversity over similarity
+```
+
+## Output Format
+
+HHfilter always outputs in **A3M format**:
+
+<CodeGroup>
+```text A3M Output
+>master_sequence
+MSTVKGYRILLAGAIDSFSLTESDKPTYRLVGPSGCSGKTTLLNAIAGESPTSGKVTLSGG
+>similar_sequence_1  
+MSTVKGYRILLAGAIDSFSLTESDKPTYRLVGPSGCSGKTTLLNAIAGESPTSGKVTLSGG
+>divergent_sequence_2
+MATIEGFKVLLSGALESYTLQPTDKPAYRVVAPSGCTAKSTVLNVLSGDTPTTGKIRMTAS
+```
+
+```text Format Rules
+Upper case  = Match states (aligned columns)
+Lower case  = Insert states (gaps in master)
+'-'         = Delete states (gaps in sequence)
+'.'         = Gaps in inserts (can be omitted)
+```
+</CodeGroup>
+
+## Tips and Best Practices
+
+<Tip>
+**Choosing identity thresholds**:
+- `-id 50`: Very stringent, for redundant databases
+- `-id 70`: Moderate filtering, good for most cases  
+- `-id 90`: Light filtering, removes only near-identical sequences
+- `-id 100`: No identity filtering
+</Tip>
+
+<Warning>
+Overly aggressive filtering (e.g., `-id 30 -cov 90`) can remove too many sequences and reduce the information content of your alignment. Start with moderate values and adjust based on results.
+</Warning>
+
+<Tip>
+**Before/after comparison**: Always check the number of sequences before and after filtering:
+
+```bash
+echo "Before: $(grep -c '^>' input.a3m) sequences"
+hhfilter -i input.a3m -o output.a3m -id 90 -cov 50 -v 2
+echo "After: $(grep -c '^>' output.a3m) sequences"
+```
+</Tip>
+
+## Advanced Options
+
+### Target Effective Sequence Count
+
+Automatically adjust filtering to reach a target Neff:
+
+```bash
+hhfilter -i alignment.a3m -o filtered.a3m -neff 7.0
+```
+
+This iteratively adjusts the `-qsc` parameter until the effective number of sequences ≈ 7.0.
+
+### Maximum Sequence Limits
+
+Control memory usage for very large alignments:
+
+```bash
+hhfilter -i huge_alignment.a3m -o filtered.a3m \
+  -maxseq 10000 \  # Max sequences to read
+  -maxres 20000    # Max HMM columns
+```
+
+### Combined Filtering Strategy
+
+Optimal filtering for most use cases:
+
+```bash
+hhfilter -i raw.a3m -o clean.a3m \
+  -id 90 \      # Remove near-duplicates
+  -cov 50 \     # Remove fragments
+  -qid 20 \     # Remove very distant sequences
+  -diff 50      # Maintain diversity
+```
+
+## Workflow Integration
+
+### Preprocessing for Database Building
+
+```bash
+#!/bin/bash
+# Filter all alignments in a directory
+for alignment in raw_alignments/*.a3m; do
+  base=$(basename "$alignment" .a3m)
+  hhfilter -i "$alignment" -o "filtered/${base}.a3m" \
+    -id 90 -cov 50 -qid 25
+  hhmake -i "filtered/${base}.a3m" -o "hmms/${base}.hhm"
+done
+```
+
+### MSA Quality Control
+
+```bash
+# Check alignment before and after filtering
+echo "Original alignment:"
+hhfilter -i alignment.a3m -o /dev/null -v 2
+
+echo "\nAfter filtering:"
+hhfilter -i alignment.a3m -o filtered.a3m -id 70 -cov 60 -v 2
+
+# Compare sizes
+ls -lh alignment.a3m filtered.a3m
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Too many sequences removed">
+    If filtering is too aggressive:
+    - Increase `-id` threshold (e.g., 70 → 90)
+    - Lower `-cov` requirement (e.g., 75 → 50)
+    - Remove `-qid` and `-qsc` filters
+    - Check if input sequences are highly diverse
+  </Accordion>
+
+  <Accordion title="Not enough filtering">
+    If alignment is still too large:
+    - Decrease `-id` threshold (e.g., 90 → 70)
+    - Increase `-cov` requirement
+    - Add `-qid` filter
+    - Use `-diff` to explicitly limit diversity
+  </Accordion>
+
+  <Accordion title="Memory errors with large alignments">
+    If HHfilter runs out of memory:
+    - Use `-maxseq` to limit input sequences
+    - Use `-maxres` to limit HMM columns
+    - Split alignment into chunks
+    - Filter in multiple passes with different criteria
+  </Accordion>
+</AccordionGroup>
+
+## Comparison with Other Filtering Tools
+
+| Feature | HHfilter | CD-HIT | USEARCH |
+|---------|----------|--------|----------|
+| **Input** | MSA (A3M/A2M) | FASTA | FASTA |
+| **Output** | A3M | FASTA | FASTA |
+| **Method** | Pairwise identity | Clustering | Clustering |
+| **Speed** | Fast | Very fast | Very fast |
+| **Diversity** | Yes (-diff) | No | No |
+| **Coverage** | Yes | Limited | Yes |
+
+## Related Tools
+
+- [**hhmake**](/tools/hhmake) - Build HMMs from filtered alignments
+- [**hhconsensus**](/tools/hhconsensus) - Generate consensus sequences
+- [**hhblits**](/tools/hhblits) - Includes built-in filtering during search
+
+## References
+
+Steinegger M, Meier M, Mirdita M, Vöhringer H, Haunsberger SJ, Söding J (2019). HH-suite3 for fast remote homology detection and deep protein annotation. *BMC Bioinformatics*, 473. [doi: 10.1186/s12859-019-3019-7](https://doi.org/10.1186/s12859-019-3019-7)

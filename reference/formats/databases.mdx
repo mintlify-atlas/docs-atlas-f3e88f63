@@ -1,0 +1,406 @@
+---
+title: 'Database Formats'
+description: 'HH-suite database formats and structures'
+---
+
+## Overview
+
+HH-suite uses specialized database formats optimized for fast HMM-HMM comparisons. Understanding these formats is essential for creating custom databases and optimizing search performance.
+
+## Database Types
+
+### HHM Database
+
+Standard HH-suite database format containing:
+- HMM profiles (.hhm files)
+- Index files for quick access
+- Optional secondary structure information
+
+### A3M Database
+
+Database of multiple sequence alignments:
+- Stored in A3M format
+- Can be converted to HHM database
+- Used by hhblits for iterative searches
+
+### CA3M Database (Compressed A3M)
+
+Compressed format for large databases:
+- Reduces storage requirements
+- Faster I/O operations
+- Used with FFindex for efficient access
+
+### CS219 Database
+
+Context-specific database using AS219 alphabet:
+- Used for fast prefiltering in hhblits
+- Compressed sequence representation
+- Enables rapid database scanning
+
+## Database Components
+
+### FFindex Structure
+
+HH-suite databases use FFindex for efficient random access:
+
+```
+db_name.ffdata    # Concatenated data file
+db_name.ffindex   # Index mapping names to data offsets
+```
+
+### For A3M Databases
+
+```
+db_name_a3m.ffdata
+db_name_a3m.ffindex
+```
+
+### For HHM Databases
+
+```
+db_name_hhm.ffdata
+db_name_hhm.ffindex
+```
+
+### For CA3M Databases
+
+```
+db_name_ca3m.ffdata
+db_name_ca3m.ffindex
+db_name_header.ffdata
+db_name_header.ffindex
+db_name_sequence.ffdata
+db_name_sequence.ffindex
+```
+
+### For CS219 Databases
+
+```
+db_name_cs219.ffdata
+db_name_cs219.ffindex
+```
+
+## Creating Databases
+
+### From FASTA File
+
+```bash
+# Convert FASTA to A3M database
+ffindex_build -s db_a3m.ffdata db_a3m.ffindex input.fasta
+```
+
+### Building HHM Database
+
+```bash
+# Build HHM database from A3M database
+hhblits_database.py -i db_a3m -o db_hhm
+```
+
+### Creating CS219 Index
+
+```bash
+# Create CS219 index for fast prefiltering
+cstranslate -i db_a3m -o db_cs219 -f -I a3m
+```
+
+## Database Formats
+
+### Standard Database
+
+Minimal database for hhsearch:
+```
+db_name_hhm.ffdata
+db_name_hhm.ffindex
+```
+
+### HHblits Database
+
+Complete database for hhblits:
+```
+db_name_a3m.ffdata
+db_name_a3m.ffindex
+db_name_hhm.ffdata
+db_name_hhm.ffindex
+db_name_cs219.ffdata
+db_name_cs219.ffindex
+```
+
+### Compressed Database
+
+For very large databases:
+```
+db_name_ca3m.ffdata
+db_name_ca3m.ffindex
+db_name_header.ffdata
+db_name_header.ffindex
+db_name_sequence.ffdata
+db_name_sequence.ffindex
+db_name_cs219.ffdata
+db_name_cs219.ffindex
+```
+
+## Using Databases
+
+### With hhblits
+
+```bash
+# Search standard database
+hhblits -i query.a3m -d /path/to/database/db_name
+```
+
+Note: Do NOT include file extensions - hhblits finds the appropriate files automatically.
+
+### With hhsearch
+
+```bash
+# Search HHM database
+hhsearch -i query.a3m -d /path/to/database/db_name
+```
+
+### Multiple Databases
+
+```bash
+# Search multiple databases
+hhblits -i query.a3m -d db1 -d db2 -d db3
+```
+
+## Database Statistics
+
+### Database Size
+
+Estimate storage requirements:
+
+- **A3M**: ~500 bytes per sequence (varies with alignment size)
+- **HHM**: ~5-10 KB per profile (for ~100 residue protein)
+- **CS219**: ~100 bytes per sequence
+- **CA3M**: ~60% of uncompressed A3M size
+
+### Database Diversity
+
+Key metrics:
+- **Number of entries**: Total sequences/profiles
+- **Average Neff**: Sequence diversity (aim for >4)
+- **Coverage**: Proteome or domain coverage
+
+## Prebuilt Databases
+
+### UniProt Databases
+
+- **UniProt20**: Clustered at 20% identity
+- **UniProt30**: Clustered at 30% identity
+- **UniRef30**: Representative sequences
+
+Download from: http://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/
+
+### Domain Databases
+
+- **PDB70**: Representative PDB structures
+- **Pfam**: Protein families
+- **SCOP**: Structural classification
+
+### Database Naming
+
+Common naming convention:
+```
+database_name_version
+```
+
+Example:
+```
+uniclust30_2023_02
+pdb70_26Sep23
+```
+
+## Database Maintenance
+
+### Updating Databases
+
+```bash
+# Download new database
+wget http://example.com/database.tar.gz
+tar xzf database.tar.gz
+
+# Update symbolic link
+ln -sf database_new database_current
+```
+
+### Merging Databases
+
+```bash
+# Combine multiple FFindex databases
+ffindex_merge db_merged.ff{data,index} db1.ff{data,index} db2.ff{data,index}
+```
+
+### Database Validation
+
+```bash
+# Check database integrity
+ffindex_get db.ffdata db.ffindex entry_name > /dev/null
+
+# Count entries
+wc -l db.ffindex
+```
+
+## Performance Optimization
+
+### SSD vs HDD
+
+- **SSD**: 5-10x faster for random access
+- **HDD**: Acceptable for sequential scans
+- **Network**: Can be slow, consider local copies
+
+### Memory Considerations
+
+- **Prefilter**: Loads CS219 index into memory
+- **HMM Search**: Random access to HHM database
+- **Large databases**: May require substantial RAM for prefilter
+
+### Database Location
+
+```bash
+# Set database path
+export HHLIB=/path/to/hhsuite
+export HHDB=/path/to/databases
+
+# Use database
+hhblits -i query.a3m -d $HHDB/uniclust30
+```
+
+## Custom Database Creation
+
+### From Protein Sequences
+
+1. **Collect sequences**
+   ```bash
+   # FASTA format with one sequence per entry
+   >protein1
+   MARVELLOUS...
+   >protein2
+   SEQUENCE...
+   ```
+
+2. **Generate MSAs** (optional but recommended)
+   ```bash
+   # Run PSI-BLAST or HHblits to generate MSAs
+   ```
+
+3. **Build FFindex database**
+   ```bash
+   ffindex_build -s db.ffdata db.ffindex sequences.fasta
+   ```
+
+4. **Create CS219 index**
+   ```bash
+   cstranslate -i db -o db_cs219 -f
+   ```
+
+### Quality Control
+
+- **Remove redundancy**: Use cd-hit or hhfilter
+- **Check coverage**: Ensure diverse representation
+- **Validate entries**: Ensure no corrupted sequences
+- **Test search**: Run sample searches
+
+## FFindex Tools
+
+### Building Index
+
+```bash
+ffindex_build [-s] db.ffdata db.ffindex input_file(s)
+```
+
+Options:
+- `-s`: Sort index by entry name
+
+### Extracting Entries
+
+```bash
+# Extract single entry
+ffindex_get db.ffdata db.ffindex entry_name
+
+# Extract multiple entries
+ffindex_get db.ffdata db.ffindex entry1 entry2 entry3
+```
+
+### Modifying Database
+
+```bash
+# Add entry
+ffindex_modify -u db.ffdata db.ffindex entry_name < new_data
+
+# Remove entry
+ffindex_modify -d db.ffdata db.ffindex entry_name
+```
+
+## Troubleshooting
+
+### Database Not Found
+
+Error: "Could not open database"
+
+Solution:
+- Check database path
+- Verify all required files exist
+- Check file permissions
+
+### Corrupted Database
+
+Error: "Invalid FFindex format"
+
+Solution:
+- Rebuild index: `ffindex_build`
+- Validate entries
+- Check disk space
+
+### Slow Performance
+
+Solution:
+- Move database to faster storage (SSD)
+- Increase RAM for prefilter
+- Use compressed format (CA3M)
+- Update to latest HH-suite version
+
+## Best Practices
+
+### Database Organization
+
+```
+databases/
+├── uniclust30/
+│   ├── uniclust30_2023_02_a3m.ffdata
+│   ├── uniclust30_2023_02_a3m.ffindex
+│   ├── uniclust30_2023_02_cs219.ffdata
+│   └── uniclust30_2023_02_cs219.ffindex
+├── pdb70/
+│   ├── pdb70_26Sep23_hhm.ffdata
+│   └── pdb70_26Sep23_hhm.ffindex
+└── custom/
+    └── my_database/
+```
+
+### Version Control
+
+- Include date in database name
+- Keep old versions temporarily
+- Document database contents and source
+- Track database statistics
+
+### Documentation
+
+Create README for each database:
+```
+Database: UniClust30
+Version: 2023_02
+Source: UniProt
+Clustering: 30% identity
+Entries: 100,000,000
+Date created: 2023-02-15
+Notes: Filtered at 90% coverage
+```
+
+## See Also
+
+- [hhblits](/reference/hhblits) - Database searching tool
+- [A3M Format](/reference/formats/a3m) - Alignment format
+- [HHM Format](/reference/formats/hhm) - HMM format
+- [cstranslate](/reference/cstranslate) - Create CS219 indices
