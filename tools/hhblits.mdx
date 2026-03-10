@@ -207,6 +207,20 @@ hhblits -i query.fas -o results.hhr -d uniclust30 \
   -pc_hhm_contxt_b 4.0     # Neff threshold
 ```
 
+## Parallel Versions
+
+HH-suite provides optimized parallel versions when compiled with OpenMP or MPI support:
+
+<Note>
+**hhblits_omp** - OpenMP multi-threaded version for shared-memory systems
+
+**hhblits_ca3m** - OpenMP version optimized for compressed CA3M databases in FFindex format
+
+**hhblits_mpi** - MPI version for distributed computing clusters
+</Note>
+
+See the [Parallel Computing Guide](/guides/parallel-computing) for usage details.
+
 ## Related Tools
 
 - [**hhsearch**](/tools/hhsearch) - Search HMM databases without iteration

@@ -110,6 +110,37 @@ Typical speedup on a 16-core workstation:
 Efficiency drops with hyperthreading due to resource contention. Use physical cores for optimal performance.
 </Note>
 
+### Specialized OpenMP Tools
+
+When compiling with OpenMP support, HH-suite provides specialized parallel executables:
+
+<Accordion title="hhblits_omp / hhsearch_omp / hhalign_omp">
+  Standard OpenMP-parallelized versions of the main tools. These offer better thread efficiency for batch processing compared to the regular versions with `-cpu` flag.
+  
+  ```bash
+  hhblits_omp -i query.fasta -d database
+  # Automatically uses OMP_NUM_THREADS cores
+  ```
+</Accordion>
+
+<Accordion title="hhblits_ca3m">
+  Specialized OpenMP version optimized for **compressed CA3M databases** in FFindex format. Provides better I/O performance for large compressed alignment databases.
+  
+  ```bash
+  # Use with CA3M-compressed databases
+  hhblits_ca3m -i queries.ffindex -d database_ca3m -oa3m results.ffindex
+  ```
+  
+  **When to use:**
+  - Working with compressed CA3M database formats
+  - Processing large batches of queries from FFindex files
+  - Need to minimize disk I/O on large databases
+</Accordion>
+
+<Tip>
+For most use cases, the standard tools with `-cpu` flag are sufficient. Use specialized versions for advanced workflows or when working with compressed database formats.
+</Tip>
+
 ## MPI Parallelization
 
 ### What is MPI?
